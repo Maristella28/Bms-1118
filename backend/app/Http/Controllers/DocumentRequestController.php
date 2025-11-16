@@ -311,6 +311,7 @@ class DocumentRequestController extends Controller
             'priority' => 'nullable|in:low,normal,high,urgent',
             'estimated_completion' => 'nullable|date',
             'payment_amount' => 'nullable|numeric|min:0',
+            'payment_status' => 'nullable|in:unpaid,paid',
             'payment_notes' => 'nullable|string',
         ]);
         
@@ -351,16 +352,34 @@ class DocumentRequestController extends Controller
             }
         }
         
+        // Handle payment status update if provided
+        if (isset($validated['payment_status'])) {
+            $docRequest->payment_status = $validated['payment_status'];
+            if ($validated['payment_status'] === 'paid') {
+                $docRequest->payment_date = now();
+                $docRequest->payment_completed = 1;
+            } else {
+                $docRequest->payment_completed = 0;
+            }
+        }
+        
+        // Handle payment amount update if provided
+        if (isset($validated['payment_amount'])) {
+            $docRequest->payment_amount = $validated['payment_amount'];
+        }
+        
+        // Handle payment notes update if provided
+        if (isset($validated['payment_notes'])) {
+            $docRequest->payment_notes = $validated['payment_notes'];
+        }
+        
         // Handle payment approval when status changes to approved
         if (strtolower($validated['status']) === 'approved' && strtolower($oldStatus) !== 'approved') {
-            if (isset($validated['payment_amount']) && $validated['payment_amount'] > 0) {
+            // Only set payment_status to unpaid if it wasn't explicitly set to paid
+            if (!isset($validated['payment_status']) && isset($validated['payment_amount']) && $validated['payment_amount'] > 0) {
                 $docRequest->payment_amount = $validated['payment_amount'];
                 $docRequest->payment_status = 'unpaid';
                 $docRequest->payment_completed = 0;
-            }
-            
-            if (isset($validated['payment_notes'])) {
-                $docRequest->payment_notes = $validated['payment_notes'];
             }
         }
         
@@ -398,16 +417,42 @@ class DocumentRequestController extends Controller
             /** @var \App\Models\DocumentRequest $documentRequest */
             $documentRequest = DocumentRequest::with(['user', 'resident'])->findOrFail($id);
             
+            \Log::info('PDF Generation Request', [
+                'document_request_id' => $id,
+                'user_id' => $documentRequest->user_id,
+                'status' => $documentRequest->status,
+                'has_resident' => $documentRequest->resident !== null,
+                'resident_id' => $documentRequest->resident?->id,
+            ]);
+            
+            // Try to load resident if not already loaded
             if (!$documentRequest->resident) {
-                return response()->json([
-                    'message' => 'Resident profile not found for this document request.'
-                ], 404);
+                // Try to find resident by user_id
+                $resident = Resident::where('user_id', $documentRequest->user_id)->first();
+                
+                if ($resident) {
+                    $documentRequest->setRelation('resident', $resident);
+                    \Log::info('Resident loaded manually', ['resident_id' => $resident->id]);
+                } else {
+                    \Log::error('Resident not found for document request', [
+                        'document_request_id' => $id,
+                        'user_id' => $documentRequest->user_id,
+                        'available_residents' => Resident::where('user_id', $documentRequest->user_id)->count()
+                    ]);
+                    return response()->json([
+                        'message' => 'Resident profile not found for this document request. Please ensure the user has a complete resident profile.',
+                        'error_code' => 'RESIDENT_NOT_FOUND',
+                        'user_id' => $documentRequest->user_id
+                    ], 404);
+                }
             }
             
-            // Check if document is approved
-            if (strtolower($documentRequest->status) !== 'approved') {
+            // Check if document is approved or processing
+            // Processing status is allowed because documents in Document Records tab may need PDF regeneration
+            $status = strtolower($documentRequest->status);
+            if ($status !== 'approved' && $status !== 'processing') {
                 return response()->json([
-                    'message' => 'Only approved document requests can generate PDF certificates.'
+                    'message' => 'Only approved or processing document requests can generate PDF certificates.'
                 ], 400);
             }
             

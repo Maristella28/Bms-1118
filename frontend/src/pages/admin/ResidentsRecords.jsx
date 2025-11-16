@@ -1,5 +1,7 @@
-import React, { useEffect, useState, useMemo, useCallback, useRef, Suspense, lazy } from "react";
+import React, { useEffect, useState, useMemo, useCallback, useRef, Suspense, lazy, Fragment } from "react";
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Menu, Transition } from '@headlessui/react';
+import { createPortal } from 'react-dom';
 import Navbar from "../../components/Navbar";
 import Sidebar from "../../components/Sidebar";
 import HeaderControls from "./components/HeaderControls";
@@ -711,6 +713,157 @@ const AvatarImg = ({ avatarPath }) => {
     />
   );
 };
+
+// Actions Dropdown Component for Residents
+const ActionsDropdown = ({ resident, onEdit, onDisable }) => {
+  const buttonRef = useRef(null);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
+  const [shouldFlipUp, setShouldFlipUp] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Calculate dropdown position when opened
+  useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      const updatePosition = () => {
+        const buttonRect = buttonRef.current.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const dropdownHeight = 150; // Approximate dropdown height
+        
+        // Check if dropdown would overflow bottom of viewport
+        const wouldOverflow = buttonRect.bottom + dropdownHeight > viewportHeight;
+        setShouldFlipUp(wouldOverflow);
+
+        // Calculate position
+        setDropdownPosition({
+          top: wouldOverflow ? buttonRect.top - dropdownHeight : buttonRect.bottom + 4,
+          left: buttonRect.right - 224, // 224px = w-56 (14rem)
+        });
+      };
+
+      updatePosition();
+
+      // Update position on scroll or resize
+      window.addEventListener('scroll', updatePosition, true);
+      window.addEventListener('resize', updatePosition);
+
+      return () => {
+        window.removeEventListener('scroll', updatePosition, true);
+        window.removeEventListener('resize', updatePosition);
+      };
+    }
+  }, [isOpen]);
+
+  const DropdownContent = ({ children }) => {
+    if (!isOpen) return null;
+
+    return createPortal(
+      <div
+        style={{
+          position: 'fixed',
+          top: `${dropdownPosition.top}px`,
+          left: `${dropdownPosition.left}px`,
+          zIndex: 9999,
+        }}
+      >
+        {children}
+      </div>,
+      document.body
+    );
+  };
+
+  const menuItems = [
+    {
+      label: 'Edit',
+      icon: PencilIcon,
+      onClick: () => onEdit?.(resident),
+      className: 'text-gray-700 hover:bg-yellow-50 hover:text-yellow-700',
+    },
+    {
+      label: 'Disable',
+      icon: TrashIcon,
+      onClick: () => {
+        console.log('Disable clicked, resident object:', resident);
+        console.log('Resident ID:', resident?.id, 'Type:', typeof resident?.id);
+        const residentId = resident?.id || resident?.user_id;
+        if (!residentId) {
+          console.error('No resident ID found in resident object:', resident);
+          return;
+        }
+        onDisable?.(residentId);
+      },
+      className: 'text-gray-700 hover:bg-red-50 hover:text-red-700',
+    },
+  ];
+
+  return (
+    <Menu as="div" className="relative inline-block text-left">
+      {({ open }) => {
+        // Update isOpen state when menu opens/closes
+        useEffect(() => {
+          setIsOpen(open);
+        }, [open]);
+
+        return (
+          <>
+            <Menu.Button
+              ref={buttonRef}
+              className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gray-100 text-gray-600 hover:text-gray-800 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200 shadow-sm hover:shadow-md"
+              aria-label="More actions"
+            >
+              <ChevronDownIcon className="w-5 h-5" />
+            </Menu.Button>
+
+            <DropdownContent>
+              <Transition
+                show={open}
+                as={Fragment}
+                enter="transition ease-out duration-200"
+                enterFrom="transform opacity-0 scale-95"
+                enterTo="transform opacity-100 scale-100"
+                leave="transition ease-in duration-150"
+                leaveFrom="transform opacity-100 scale-100"
+                leaveTo="transform opacity-0 scale-95"
+              >
+                <Menu.Items
+                  className={`w-56 rounded-xl bg-white shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none overflow-hidden ${
+                    shouldFlipUp ? 'origin-bottom-right' : 'origin-top-right'
+                  }`}
+                  static
+                >
+                  <div className="py-1">
+                    {menuItems.map((item) => {
+                      return (
+                        <Menu.Item key={item.label}>
+                          {({ active }) => (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                item.onClick();
+                              }}
+                              className={`${item.className} group flex items-center w-full px-4 py-2.5 text-sm font-medium transition-all duration-150 ${
+                                active ? 'translate-x-1' : ''
+                              }`}
+                            >
+                              <item.icon
+                                className="mr-3 h-5 w-5 flex-shrink-0 text-gray-400 group-hover:text-current"
+                                aria-hidden="true"
+                              />
+                              <span className="flex-1 text-left">{item.label}</span>
+                            </button>
+                          )}
+                        </Menu.Item>
+                      );
+                    })}
+                  </div>
+                </Menu.Items>
+              </Transition>
+            </DropdownContent>
+          </>
+        );
+      }}
+    </Menu>
+  );
+};
 // Main component wrapper
 const ResidentsRecords = () => {
   const navigate = useNavigate();
@@ -1223,11 +1376,22 @@ const ResidentsRecords = () => {
       const fetched = Array.isArray(res.data.residents) ? res.data.residents : [];
       
       // Validate and sanitize data
-      const validatedResidents = fetched.filter(resident => 
-        resident && 
-        typeof resident === 'object' && 
-        (resident.id || resident.resident_id)
-      );
+      const validatedResidents = fetched
+        .filter(resident => 
+          resident && 
+          typeof resident === 'object' && 
+          (resident.id || resident.resident_id)
+        )
+        .map(resident => {
+          // Ensure we have an id field (use primary key id, not profile id)
+          if (!resident.id && resident.resident_id) {
+            console.warn('Resident missing id field:', resident);
+          }
+          return {
+            ...resident,
+            id: resident.id || null // Explicitly set id field
+          };
+        });
       
       // Attach computed update_status to each resident for consistent UI
       const withStatus = validatedResidents.map((r) => ({ 
@@ -1656,19 +1820,30 @@ const ResidentsRecords = () => {
 
   // Triggers the confirm modal
   const handleDelete = (residentId) => {
+    console.log('handleDelete called with residentId:', residentId, 'Type:', typeof residentId);
+    if (!residentId) {
+      console.error('No resident ID provided to handleDelete');
+      showInfo('Error: No resident ID provided', 'Error', 'error');
+      return;
+    }
     openConfirm(residentId);
   };
 
   const confirmDelete = async () => {
     if (!pendingDeleteId) return closeConfirm();
     try {
-      await axiosInstance.post(`/admin/residents/${pendingDeleteId}/delete`);
-      showInfo('Resident deleted successfully.', 'Deleted', 'success');
+      console.log('Attempting to disable resident with ID:', pendingDeleteId, 'Type:', typeof pendingDeleteId);
+      const response = await axiosInstance.post(`/admin/residents/${pendingDeleteId}/delete`);
+      console.log('Disable resident response:', response.data);
+      showInfo('Resident disabled successfully.', 'Disabled', 'success');
       fetchResidents();
       setShowRecentlyDeleted(true);
     } catch (err) {
-      console.error('Failed to delete resident:', err);
-      showInfo(`Failed to delete resident: ${err.response?.data?.message || err.message || 'Unknown error'}`, 'Delete Error', 'error');
+      console.error('Failed to disable resident:', err);
+      console.error('Error response:', err.response?.data);
+      console.error('Error status:', err.response?.status);
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || err.message || 'Unknown error';
+      showInfo(`Failed to disable resident: ${errorMessage}`, 'Disable Error', 'error');
     } finally {
       closeConfirm();
     }
@@ -3415,9 +3590,17 @@ const ResidentsRecords = () => {
                       </td>
                     </tr>
                   ) : (
-                    getPaginatedResidents().map((r, index) => (
-
-                      <React.Fragment key={`resident-${r.id}-${index}`}>
+                    getPaginatedResidents().map((r, index) => {
+                      // Debug: Log the resident object to ensure it has an id
+                      if (index === 0 && !r.id) {
+                        console.error('First resident missing id field:', r);
+                      }
+                      
+                      // Get the primary key ID - prioritize id over user_id
+                      const residentPrimaryKey = r.id || r.user_id;
+                      
+                      return (
+                      <React.Fragment key={`resident-${residentPrimaryKey || r.resident_id || index}-${index}`}>
                         <tr className="hover:bg-gradient-to-r hover:from-green-50/80 hover:to-emerald-50/80 transition-all duration-300 group border-b border-slate-200/50 hover:border-green-300/50 hover:shadow-sm">
                           <td className="px-6 py-4"><AvatarImg avatarPath={r.avatar} /></td>
                           <td className="px-6 py-4 hidden sm:table-cell">
@@ -3425,7 +3608,7 @@ const ResidentsRecords = () => {
                               {r.resident_id}
                             </span>
                           </td>
-                          <td onClick={() => handleShowDetails(r.id)} className="px-6 py-4 cursor-pointer group-hover:text-green-600 transition-colors duration-200">
+                          <td onClick={() => handleShowDetails(residentPrimaryKey)} className="px-6 py-4 cursor-pointer group-hover:text-green-600 transition-colors duration-200">
                             <div className="font-semibold text-gray-900">{formatResidentName(r)}</div>
                             <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
                               <EyeIcon className="w-3 h-3" /> Click to view details
@@ -3453,29 +3636,17 @@ const ResidentsRecords = () => {
                             </div>
                           </td>
                           <td className="px-6 py-4">
-                            {/* Update Status rendered below */}
-                            <div className="flex gap-2 flex-wrap">
-                              <button
-                                onClick={() => handleUpdate(r)}
-                                className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-md flex items-center gap-2 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50"
-                              >
-                                <PencilIcon className="w-4 h-4" />
-                                Edit
-                              </button>
-                              
-                              <button
-                                onClick={() => handleDelete(r.id)}
-                                className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-md flex items-center gap-2 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
-                                title="Delete Resident"
-                              >
-                                <TrashIcon className="w-4 h-4" />
-                                Delete
-                              </button>
+                            <div className="flex items-center justify-end">
+                              <ActionsDropdown
+                                resident={{...r, id: residentPrimaryKey}}
+                                onEdit={handleUpdate}
+                                onDisable={handleDelete}
+                              />
                             </div>
                           </td>
                         </tr>
 
-                        {selectedResident?.id === r.id && (
+                        {selectedResident?.id === (r.id || r.user_id) && (
                           <tr className="bg-gradient-to-r from-green-50 to-emerald-50">
                             <td colSpan="8" className="px-8 py-8">
                               {detailLoading ? (
@@ -3647,7 +3818,8 @@ const ResidentsRecords = () => {
                           </tr>
                         )}
                       </React.Fragment>
-                    ))
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -3816,8 +3988,8 @@ const ResidentsRecords = () => {
               <div className="p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-900">Confirm Deletion</h3>
-                    <p className="mt-2 text-sm text-gray-700">Are you sure you want to delete this resident? This action cannot be undone.</p>
+                    <h3 className="text-lg font-bold text-gray-900">Confirm Disable</h3>
+                    <p className="mt-2 text-sm text-gray-700">Are you sure you want to disable this resident? This action cannot be undone.</p>
                   </div>
                   <div className="flex items-start">
                     <button 
@@ -3840,7 +4012,7 @@ const ResidentsRecords = () => {
                     onClick={confirmDelete} 
                     className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-colors font-medium"
                   >
-                    Delete
+                    Disable
                   </button>
                 </div>
               </div>

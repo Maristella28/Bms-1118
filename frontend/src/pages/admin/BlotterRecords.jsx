@@ -135,6 +135,27 @@ const BlotterRecords = () => {
   const [editData, setEditData] = useState({});
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleData, setScheduleData] = useState({});
+  const [showWalkInModal, setShowWalkInModal] = useState(false);
+  const [walkInData, setWalkInData] = useState({
+    complainant_name: '',
+    respondent_name: '',
+    complaint_type: '',
+    complaint_details: '',
+    incident_date: '',
+    incident_time: '',
+    incident_location: '',
+    contact_number: '',
+    email: '',
+    appointment_date: '',
+    appointment_time: '',
+    remarks: '',
+    resident_id: null,
+  });
+  const [walkInLoading, setWalkInLoading] = useState(false);
+  const [residentSearch, setResidentSearch] = useState('');
+  const [residentSearchResults, setResidentSearchResults] = useState([]);
+  const [showResidentDropdown, setShowResidentDropdown] = useState(false);
+  const [isSearchingResidents, setIsSearchingResidents] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -282,6 +303,22 @@ const BlotterRecords = () => {
     setPieChartData(generatePieChartData(filteredAnalyticsRecords));
   }, [analyticsYear, analyticsMonth, blotterRecords]);
 
+  // Close resident dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.resident-search-container')) {
+        setShowResidentDropdown(false);
+      }
+    };
+
+    if (showResidentDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showResidentDropdown]);
+
   const handleShowDetails = (record) => {
     setDetailsData(record);
     setShowDetailsModal(true);
@@ -307,6 +344,140 @@ const BlotterRecords = () => {
     // Handle schedule save logic here
     setShowScheduleModal(false);
     setScheduleData({});
+  };
+
+  const handleWalkInSchedule = () => {
+    // Reset form data
+    setWalkInData({
+      complainant_name: '',
+      respondent_name: '',
+      complaint_type: '',
+      complaint_details: '',
+      incident_date: new Date().toISOString().split('T')[0],
+      incident_time: '',
+      incident_location: '',
+      contact_number: '',
+      email: '',
+      appointment_date: '',
+      appointment_time: '',
+      remarks: '',
+      resident_id: null,
+    });
+    setResidentSearch('');
+    setResidentSearchResults([]);
+    setShowResidentDropdown(false);
+    setShowWalkInModal(true);
+  };
+
+  // Search residents function
+  const handleResidentSearch = async (searchValue) => {
+    setResidentSearch(searchValue);
+    
+    if (!searchValue || searchValue.trim().length < 2) {
+      setResidentSearchResults([]);
+      setShowResidentDropdown(false);
+      return;
+    }
+
+    try {
+      setIsSearchingResidents(true);
+      const response = await axios.get(`/api/admin/residents/search?search=${encodeURIComponent(searchValue)}`);
+      setResidentSearchResults(response.data || []);
+      setShowResidentDropdown(true);
+    } catch (error) {
+      console.error('Error searching residents:', error);
+      setResidentSearchResults([]);
+    } finally {
+      setIsSearchingResidents(false);
+    }
+  };
+
+  // Handle resident selection
+  const handleResidentSelect = (resident) => {
+    const fullName = `${resident.first_name || ''} ${resident.middle_name ? resident.middle_name + ' ' : ''}${resident.last_name || ''}${resident.name_suffix && resident.name_suffix.toLowerCase() !== 'none' ? ' ' + resident.name_suffix : ''}`.trim();
+    
+    setWalkInData({
+      ...walkInData,
+      complainant_name: fullName,
+      contact_number: resident.mobile_number || resident.contact_number || resident.phone || '',
+      email: resident.email || '',
+      resident_id: resident.id || null,
+    });
+    setResidentSearch(fullName);
+    setShowResidentDropdown(false);
+    setResidentSearchResults([]);
+  };
+
+  const handleWalkInSubmit = async () => {
+    try {
+      setWalkInLoading(true);
+      
+      // Validate required fields
+      if (!walkInData.complainant_name || 
+          !walkInData.appointment_date || !walkInData.appointment_time ||
+          !walkInData.contact_number || !walkInData.email) {
+        alert('Please fill in all required fields');
+        setWalkInLoading(false);
+        return;
+      }
+
+      // Create blotter record with walk-in data
+      const formData = {
+        complainant_name: walkInData.complainant_name,
+        respondent_name: 'Walk-in Appointment', // Default respondent name
+        complaint_type: 'Other', // Default complaint type
+        complaint_details: walkInData.remarks || 'Walk-in appointment scheduled',
+        incident_date: new Date().toISOString().split('T')[0], // Use today's date as default
+        incident_time: '12:00',
+        incident_location: 'Barangay Hall',
+        contact_number: walkInData.contact_number,
+        email: walkInData.email,
+        remarks: walkInData.remarks || 'Walk-in appointment scheduled',
+        resident_id: walkInData.resident_id || 1, // Default resident_id if not provided
+        status: 'Scheduled', // Set status as Scheduled for walk-in appointments
+        appointment_date: walkInData.appointment_date,
+        appointment_time: walkInData.appointment_time,
+      };
+
+      // Create the blotter record with appointment details
+      const response = await axios.post('/blotter-records', formData);
+      
+      if (response.data) {
+        alert('Walk-in appointment scheduled successfully! Email and notification sent to the resident.');
+        setShowWalkInModal(false);
+        setWalkInData({
+          complainant_name: '',
+          respondent_name: '',
+          complaint_type: '',
+          complaint_details: '',
+          incident_date: new Date().toISOString().split('T')[0],
+          incident_time: '',
+          incident_location: '',
+          contact_number: '',
+          email: '',
+          appointment_date: '',
+          appointment_time: '',
+          remarks: '',
+          resident_id: null,
+        });
+        
+        // Refresh the records list
+        setLoading(true);
+        const res = await axios.get("/blotter-records");
+        const records = res.data.records || [];
+        const solvedRecords = records.filter(record => 
+          record.status === 'Completed' || record.status === 'Cancelled'
+        );
+        setBlotterRecords(solvedRecords);
+        setFilteredRecords(solvedRecords);
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error('Error scheduling walk-in appointment:', error);
+      alert(error.response?.data?.message || error.response?.data?.errors || 'Failed to schedule walk-in appointment. Please try again.');
+    } finally {
+      setWalkInLoading(false);
+    }
   };
 
   const formatDate = (dateString) => {
@@ -590,9 +761,12 @@ const BlotterRecords = () => {
                   <ShieldExclamationIcon className="w-5 h-5" />
                   Ongoing Cases
                 </button>
-                <button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 rounded-xl shadow-lg flex items-center gap-3 text-sm font-semibold transition-all duration-300 transform hover:scale-105">
+                <button 
+                  onClick={handleWalkInSchedule}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 rounded-xl shadow-lg flex items-center gap-3 text-sm font-semibold transition-all duration-300 transform hover:scale-105"
+                >
                   <CalendarIcon className="w-5 h-5" />
-                  Schedule Appointments
+                  Schedule Appointments (Walk-in)
                 </button>
                 <button
                   onClick={() => handleNavigation('/admin/modules/Blotter/NewComplaint')}
@@ -875,13 +1049,6 @@ const BlotterRecords = () => {
                               >
                                 <EyeIcon className="w-3.5 h-3.5" />
                                 <span className="hidden sm:inline">View</span>
-                              </button>
-                              <button
-                                onClick={() => handleEdit(record)}
-                                className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white px-3 py-2 rounded-lg text-xs font-semibold shadow-md flex items-center gap-1.5 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50 hover:shadow-lg"
-                              >
-                                <PencilIcon className="w-3.5 h-3.5" />
-                                <span className="hidden sm:inline">Edit</span>
                               </button>
                             </div>
                           </td>
@@ -1310,6 +1477,202 @@ const BlotterRecords = () => {
                   >
                     <PencilIcon className="w-5 h-5" />
                     Edit Record
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Walk-in Appointment Modal */}
+        {showWalkInModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-fade-in">
+            <div className="bg-gradient-to-br from-white via-blue-50 to-purple-50 rounded-3xl shadow-2xl border border-blue-200 w-full max-w-3xl max-h-[95vh] overflow-y-auto relative animate-scale-in">
+              {/* Sticky Modal Header */}
+              <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-t-3xl p-8 sticky top-0 z-10 flex flex-col gap-2 shadow-md">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-2xl font-extrabold text-white flex items-center gap-3 tracking-tight drop-shadow-lg">
+                    <CalendarIcon className="w-7 h-7" />
+                    Schedule Walk-in Appointment
+                  </h2>
+                  <button
+                    onClick={() => setShowWalkInModal(false)}
+                    className="text-white hover:text-blue-200 transition-colors duration-200 text-2xl font-bold focus:outline-none focus:ring-2 focus:ring-blue-300 rounded-full p-1"
+                  >
+                    <XMarkIcon className="w-7 h-7" />
+                  </button>
+                </div>
+                <p className="text-blue-100 text-sm mt-2">Fill in the details below to schedule an appointment for a walk-in resident</p>
+              </div>
+
+              <div className="p-10 space-y-6 bg-gradient-to-br from-white/80 to-blue-50/80 rounded-b-3xl animate-fadeIn">
+                {/* Complainant Information */}
+                <div className="bg-white/90 rounded-2xl shadow-lg border border-blue-100 p-6 space-y-4">
+                  <h3 className="text-lg font-bold text-blue-700 flex items-center gap-2 mb-4">
+                    <UserIcon className="w-5 h-5" /> Complainant Information
+                  </h3>
+                  
+                  {/* Resident Search Bar */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-blue-700 mb-2">Search Resident (Optional)</label>
+                    <div className="relative resident-search-container">
+                      <input
+                        type="text"
+                        value={residentSearch}
+                        onChange={(e) => handleResidentSearch(e.target.value)}
+                        onFocus={() => {
+                          if (residentSearchResults.length > 0) {
+                            setShowResidentDropdown(true);
+                          }
+                        }}
+                        className="w-full border border-blue-200 rounded-lg px-4 py-2.5 pl-10 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 bg-white shadow-sm text-gray-900"
+                        placeholder="Search by name or resident ID to auto-fill..."
+                      />
+                      <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-3 text-gray-400" />
+                      {isSearchingResidents && (
+                        <div className="absolute right-3 top-3">
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+                        </div>
+                      )}
+                      
+                      {/* Dropdown Results */}
+                      {showResidentDropdown && residentSearchResults.length > 0 && (
+                        <div className="absolute z-50 w-full mt-1 bg-white border border-blue-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                          {residentSearchResults.map((resident) => {
+                            const fullName = `${resident.first_name || ''} ${resident.middle_name ? resident.middle_name + ' ' : ''}${resident.last_name || ''}${resident.name_suffix && resident.name_suffix.toLowerCase() !== 'none' ? ' ' + resident.name_suffix : ''}`.trim();
+                            return (
+                              <button
+                                key={resident.id}
+                                type="button"
+                                onClick={() => handleResidentSelect(resident)}
+                                className="w-full px-4 py-3 flex items-center gap-3 hover:bg-blue-50 transition-colors text-left border-b border-gray-100 last:border-b-0"
+                              >
+                                <div className="flex-shrink-0">
+                                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+                                    <span className="text-sm font-semibold text-blue-800">
+                                      {resident.first_name?.[0]?.toUpperCase() || resident.last_name?.[0]?.toUpperCase() || '?'}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-gray-900 truncate">{fullName}</p>
+                                  <p className="text-xs text-gray-500 truncate">
+                                    {resident.resident_id || resident.residents_id || 'N/A'} • {resident.email || resident.mobile_number || 'No contact'}
+                                  </p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Type at least 2 characters to search for existing residents</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-blue-700 mb-1">Complainant Name <span className="text-red-500">*</span></label>
+                      <input
+                        type="text"
+                        value={walkInData.complainant_name}
+                        onChange={(e) => setWalkInData({...walkInData, complainant_name: e.target.value})}
+                        className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 bg-white shadow-sm text-gray-900"
+                        placeholder="Enter complainant name"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-blue-700 mb-1">Contact Number <span className="text-red-500">*</span></label>
+                      <input
+                        type="tel"
+                        value={walkInData.contact_number}
+                        onChange={(e) => setWalkInData({...walkInData, contact_number: e.target.value})}
+                        className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 bg-white shadow-sm text-gray-900"
+                        placeholder="Enter contact number"
+                        required
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-blue-700 mb-1">Email Address <span className="text-red-500">*</span></label>
+                      <input
+                        type="email"
+                        value={walkInData.email}
+                        onChange={(e) => setWalkInData({...walkInData, email: e.target.value})}
+                        className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 bg-white shadow-sm text-gray-900"
+                        placeholder="Enter email address"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Appointment Details */}
+                <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl shadow-lg border border-blue-200 p-6 space-y-4">
+                  <h3 className="text-lg font-bold text-blue-700 flex items-center gap-2 mb-4">
+                    <CalendarIcon className="w-5 h-5" /> Appointment Schedule
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-blue-700 mb-1">Appointment Date <span className="text-red-500">*</span></label>
+                      <input
+                        type="date"
+                        value={walkInData.appointment_date}
+                        onChange={(e) => setWalkInData({...walkInData, appointment_date: e.target.value})}
+                        className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 bg-white shadow-sm text-gray-900"
+                        min={new Date().toISOString().split('T')[0]}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-blue-700 mb-1">Appointment Time <span className="text-red-500">*</span></label>
+                      <select
+                        value={walkInData.appointment_time}
+                        onChange={(e) => setWalkInData({...walkInData, appointment_time: e.target.value})}
+                        className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 bg-white shadow-sm text-gray-900"
+                        required
+                      >
+                        <option value="">Select Time</option>
+                        <option value="08:00 AM">08:00 AM</option>
+                        <option value="09:00 AM">09:00 AM</option>
+                        <option value="10:00 AM">10:00 AM</option>
+                        <option value="11:00 AM">11:00 AM</option>
+                        <option value="01:00 PM">01:00 PM</option>
+                        <option value="02:00 PM">02:00 PM</option>
+                        <option value="03:00 PM">03:00 PM</option>
+                        <option value="04:00 PM">04:00 PM</option>
+                      </select>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-blue-700 mb-1">Remarks</label>
+                      <textarea
+                        value={walkInData.remarks}
+                        onChange={(e) => setWalkInData({...walkInData, remarks: e.target.value})}
+                        className="w-full border border-blue-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 bg-white shadow-sm text-gray-900"
+                        placeholder="Enter any additional remarks"
+                        rows="3"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="mt-8 flex justify-end gap-4 pt-6 border-t border-blue-100 sticky bottom-0 bg-gradient-to-r from-blue-50 to-purple-50 z-10 rounded-b-3xl">
+                  <button
+                    onClick={() => setShowWalkInModal(false)}
+                    className="px-6 py-3 bg-gradient-to-r from-blue-100 to-purple-100 hover:from-blue-200 hover:to-purple-200 text-blue-700 rounded-xl font-medium transition-all duration-300 shadow-md hover:shadow-lg hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleWalkInSubmit}
+                    className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-semibold shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center gap-2 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                    disabled={walkInLoading}
+                  >
+                    {walkInLoading ? (
+                      <span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span> Scheduling...</span>
+                    ) : (
+                      <><CheckCircleIcon className="w-5 h-5" /> Schedule Appointment</>
+                    )}
                   </button>
                 </div>
               </div>

@@ -1,6 +1,11 @@
- import React from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { 
+  ArrowLeftIcon,
+  ExclamationTriangleIcon,
+  ArrowPathIcon
+} from '@heroicons/react/24/outline';
+import { ExclamationTriangleIcon as ExclamationTriangleIconSolid } from '@heroicons/react/24/solid';
 import Navbar from '../../../../components/Navbar';
 import Sidebar from '../../../../components/Sidebar';
 import DisabledResidentsTable from './DisabledResidentsTable';
@@ -44,13 +49,11 @@ const DisabledResidentsPage = () => {
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-orange-600 rounded-xl flex items-center justify-center shadow-md">
-                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
+                      <ExclamationTriangleIconSolid className="w-6 h-6 text-white" />
                     </div>
                     <h1 className="text-2xl font-bold bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
-                    Disabled Resident Records
-                  </h1>
+                      Disabled Resident Records
+                    </h1>
                   </div>
                 </div>
               </div>
@@ -84,7 +87,8 @@ const DisabledResidentsPage = () => {
                   </div>
                   
                   <div className="flex items-center gap-3">
-                    <div className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2">
+                    <div className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2 flex items-center gap-2">
+                      <ArrowPathIcon className="w-5 h-5 text-white" />
                       <span className="text-white text-sm font-medium">
                         Recovery Center
                       </span>

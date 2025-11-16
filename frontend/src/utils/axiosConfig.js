@@ -11,7 +11,7 @@ const baseURL = typeof import.meta !== 'undefined' && import.meta.env && import.
 const instance = axios.create({
   baseURL,
   withCredentials: true, // Required for Sanctum cookie-based auth
-  timeout: 30000, // 30 second timeout - increased due to slow backend
+  timeout: 60000, // 60 second timeout - increased for delete operations
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',

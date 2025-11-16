@@ -39,7 +39,8 @@ import {
   ChevronRightIcon,
   BuildingOfficeIcon,
   HomeIcon,
-  DocumentCheckIcon
+  DocumentCheckIcon,
+  GiftIcon
 } from "@heroicons/react/24/solid";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useTestData, getTestDocumentRecords } from '../../testData/documentRecordsTestData';
@@ -216,7 +217,12 @@ const DocumentsRecords = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [chartData, setChartData] = useState([]);
   const [confirmingPayment, setConfirmingPayment] = useState(null);
+  const [markingAsFree, setMarkingAsFree] = useState(null);
   const [downloadingExcel, setDownloadingExcel] = useState(false);
+  
+  // Free document confirmation modal state
+  const [showFreeConfirmModal, setShowFreeConfirmModal] = useState(false);
+  const [freeConfirmRecord, setFreeConfirmRecord] = useState(null);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -264,6 +270,8 @@ const DocumentsRecords = () => {
   const fetchRecords = async (showRefreshIndicator = false, retryCount = 0) => {
     if (showRefreshIndicator) {
       setIsRefreshing(true);
+    } else {
+      setLoading(true);
     }
 
     const maxRetries = 2;
@@ -323,7 +331,8 @@ const DocumentsRecords = () => {
           estimatedCompletion: item.estimated_completion,
           purpose: item.fields?.purpose || '',
           remarks: item.fields?.remarks || '',
-          pdfPath: item.pdf_path,
+          pdfPath: item.pdf_path || item.pdfPath || null,
+          pdf_path: item.pdf_path || item.pdfPath || null, // Keep both for compatibility
           photoPath: item.photo_path,
           photoType: item.photo_type,
           photoMetadata: item.photo_metadata,
@@ -344,7 +353,10 @@ const DocumentsRecords = () => {
             console.log(`Mapped paid record ${record.id}:`, {
               paymentStatus: record.paymentStatus,
               paidDocument: record.paidDocument,
-              receipt_number: record.paidDocument?.receipt_number
+              receipt_number: record.paidDocument?.receipt_number,
+              pdfPath: record.pdfPath,
+              pdf_path: record.pdf_path,
+              status: record.status
             });
           }
         });
@@ -366,11 +378,39 @@ const DocumentsRecords = () => {
       console.error('Error details:', {
         response: err.response,
         status: err.response?.status,
-        data: err.response?.data
+        data: err.response?.data,
+        code: err.code,
+        message: err.message
       });
       
+      // Check if it's a timeout error
+      const isTimeoutError = err.code === 'ECONNABORTED' || 
+                            err.message?.includes('timeout') || 
+                            err.name === 'AxiosError' && err.code === 'ECONNABORTED';
+      
       let errorMessage = '❌ Failed to load data: ';
-      if (err.response) {
+      
+      if (isTimeoutError) {
+        errorMessage = '⏱️ Request timeout: The server is taking too long to respond. ';
+        
+        // Retry for timeout errors
+        if (retryCount < maxRetries) {
+          console.log(`Retrying request after timeout (attempt ${retryCount + 1}/${maxRetries + 1})`);
+          
+          setToastMessage({
+            type: 'loading',
+            message: `⏱️ Request timed out. Retrying... (${retryCount + 1}/${maxRetries})`,
+            duration: 3000
+          });
+          
+          setTimeout(() => {
+            fetchRecords(showRefreshIndicator, retryCount + 1);
+          }, 3000 * (retryCount + 1)); // Exponential backoff: 3s, 6s
+          return;
+        } else {
+          errorMessage += 'Please check your connection or try again later. The server may be experiencing high load.';
+        }
+      } else if (err.response) {
         const status = err.response.status;
         const data = err.response.data;
         
@@ -392,6 +432,13 @@ const DocumentsRecords = () => {
         // Retry for network errors
         if (retryCount < maxRetries) {
           console.log(`Retrying request (attempt ${retryCount + 1}/${maxRetries + 1})`);
+          
+          setToastMessage({
+            type: 'loading',
+            message: `🌐 Network error. Retrying... (${retryCount + 1}/${maxRetries})`,
+            duration: 3000
+          });
+          
           setTimeout(() => {
             fetchRecords(showRefreshIndicator, retryCount + 1);
           }, 2000 * (retryCount + 1)); // Exponential backoff
@@ -404,13 +451,14 @@ const DocumentsRecords = () => {
       setToastMessage({
         type: 'error',
         message: errorMessage,
-        duration: 5000
+        duration: 7000
       });
       
       // Set empty records to prevent UI issues
       setRecords([]);
       setFilteredRecords([]);
     } finally {
+      setLoading(false);
       if (showRefreshIndicator) {
         setIsRefreshing(false);
       }
@@ -844,6 +892,117 @@ const DocumentsRecords = () => {
     setShowPaymentConfirmModal(true);
   };
 
+  // Open free document confirmation modal
+  const handleMarkAsFree = (record) => {
+    setFreeConfirmRecord(record);
+    setShowFreeConfirmModal(true);
+  };
+
+  // Process free document after modal confirmation
+  const handleFreeConfirm = async () => {
+    if (!freeConfirmRecord) return;
+    
+    // Prevent multiple clicks
+    if (markingAsFree === freeConfirmRecord.id) {
+      return;
+    }
+    
+    setMarkingAsFree(freeConfirmRecord.id);
+    setLoading(true);
+    setToastMessage({
+      type: 'loading',
+      message: 'Processing free document...',
+      duration: 0
+    });
+    
+    try {
+      // Update payment status directly using PATCH
+      // The backend now accepts payment_status in the update method
+      const response = await axiosInstance.patch(`/document-requests/${freeConfirmRecord.id}`, {
+        status: freeConfirmRecord.status, // Keep the current status (Required field)
+        payment_status: 'paid',
+        payment_amount: 0,
+        payment_notes: 'Free document - no payment required',
+        fields: freeConfirmRecord.fields || { purpose: freeConfirmRecord.purpose || '' }
+      });
+      
+      console.log('Free document update response:', response.data);
+      
+      // Update local state immediately with the response data
+      const updatedRecord = response.data;
+      setRecords(records.map(r => r.id === freeConfirmRecord.id ? { 
+        ...r, 
+        paymentStatus: updatedRecord.payment_status || 'paid',
+        paymentAmount: updatedRecord.payment_amount || 0,
+        status: updatedRecord.status,
+        paidDocument: {
+          receipt_number: null, // Free documents don't have receipts
+          amount_paid: 0,
+          payment_date: updatedRecord.payment_date || new Date().toISOString()
+        }
+      } : r));
+      
+      // Show success message
+      setToastMessage({
+        type: 'success',
+        message: `✅ Free document processed successfully! Document moved to Document Records.`,
+        duration: 4000
+      });
+      
+      // Close modal
+      setShowFreeConfirmModal(false);
+      const recordId = freeConfirmRecord.id;
+      setFreeConfirmRecord(null);
+      
+      // Refresh records to ensure everything is in sync
+      await fetchRecords(false); // Don't show refresh indicator
+      
+    } catch (err) {
+      console.error('Error marking document as free:', err);
+      console.error('Error details:', {
+        response: err.response,
+        status: err.response?.status,
+        data: err.response?.data,
+        code: err.code,
+        message: err.message
+      });
+      
+      let errorMessage = 'Failed to process free document.';
+      
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.response?.data?.error_code) {
+        switch (err.response.data.error_code) {
+          case 'NOT_APPROVED':
+            errorMessage = 'Document must be approved or processing before marking as free.';
+            break;
+          case 'NO_PAYMENT_AMOUNT':
+            errorMessage = 'Unable to process free document. Please contact support.';
+            break;
+          case 'ALREADY_PAID':
+            errorMessage = 'This document has already been processed.';
+            break;
+          default:
+            errorMessage = err.response.data.message || errorMessage;
+        }
+      } else if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        errorMessage = 'Request timed out. Please try again.';
+      } else if (err.request) {
+        errorMessage = 'Network error. Please check your connection.';
+      }
+      
+      // Keep modal open on error so user can see the error and try again
+      setToastMessage({
+        type: 'error',
+        message: `❌ ${errorMessage}`,
+        duration: 6000
+      });
+    } finally {
+      setMarkingAsFree(null);
+      setLoading(false);
+    }
+  };
+
   // Process payment after modal confirmation
   const handlePaymentConfirm = async () => {
     if (!paymentConfirmRecord) return;
@@ -985,8 +1144,8 @@ const DocumentsRecords = () => {
         // When a request is paid, it moves to Document Records tab
         matchesTab = record.paymentStatus !== 'paid';
       } else if (activeTab === 'records') {
-        // Show only paid and approved requests (finalized records)
-        matchesTab = record.paymentStatus === 'paid' && record.status === 'Approved';
+        // Show only paid requests that are approved or processing (finalized records)
+        matchesTab = record.paymentStatus === 'paid' && (record.status === 'Approved' || record.status === 'Processing');
       }
       
       return matchesSearch && matchesDocumentType && matchesStatus && matchesTab;
@@ -1285,19 +1444,35 @@ const DocumentsRecords = () => {
     });
     
     try {
-      // Only allow PDF generation for Approved status (backend requirement)
-      if (record.status !== 'Approved') {
+      // Allow PDF generation for Approved or Processing status
+      // Processing status might need PDF regeneration if it was lost or never generated
+      const recordStatus = (record.status || '').toLowerCase();
+      if (recordStatus !== 'approved' && recordStatus !== 'processing') {
         setToastMessage({
           type: 'error',
-          message: `❌ Only approved requests can generate PDF. Current status: ${record.status}`,
+          message: `❌ Only approved or processing requests can generate PDF. Current status: ${record.status}`,
           duration: 4000
         });
         setGeneratingPdf(null);
         return;
       }
+      
+      // If status is Processing, we can still generate PDF (regeneration)
+      // Update status to Approved first if needed (backend requires Approved status for generation)
+      if (recordStatus === 'processing') {
+        // Try to generate PDF anyway - backend might allow it
+        // If it fails, we'll catch and show appropriate error
+      }
 
-      // Check if PDF already exists
-      if (record.pdfPath) {
+      // Check if PDF already exists - but allow regeneration for Processing status
+      // This handles cases where PDF file was deleted or corrupted
+      const hasPdfPath = record.pdfPath || record.pdf_path;
+      if (hasPdfPath && recordStatus === 'processing') {
+        // For Processing status, allow regeneration even if PDF path exists
+        // This handles cases where PDF file was deleted or corrupted
+        console.log('PDF path exists but allowing regeneration for Processing status');
+      } else if (hasPdfPath && recordStatus === 'approved') {
+        // For Approved status, if PDF exists, suggest using View/Download
         setToastMessage({
           type: 'info',
           message: '📄 PDF already exists. Use "View PDF" or "Download PDF" instead.',
@@ -1307,7 +1482,7 @@ const DocumentsRecords = () => {
         return;
       }
 
-      // Generate PDF FIRST (backend requires Approved status)
+      // Generate PDF (backend now allows both Approved and Processing status)
       const response = await axiosInstance.post(`/document-requests/${record.id}/generate-pdf`);
       
       // Get the PDF path from the response (backend returns pdf_path)
@@ -1324,15 +1499,21 @@ const DocumentsRecords = () => {
         throw new Error('PDF path not returned from server. PDF may not have been generated successfully.');
       }
       
-      // Update status to Processing AFTER PDF generation succeeds
-      // This ensures the database has the correct status before we try to view/download
-      if (record.status === 'Approved') {
-        await axiosInstance.patch(`/document-requests/${record.id}`, {
-          status: 'processing',
-          fields: {
-            purpose: record.purpose,
-          },
-        });
+      // Update status to Processing AFTER PDF generation succeeds (only if it was Approved)
+      // If status is already Processing, keep it as Processing
+      const currentStatus = (record.status || '').toLowerCase();
+      if (currentStatus === 'approved') {
+        try {
+          await axiosInstance.patch(`/document-requests/${record.id}`, {
+            status: 'processing',
+            fields: {
+              purpose: record.purpose,
+            },
+          });
+        } catch (statusErr) {
+          console.warn('Failed to update status to Processing:', statusErr);
+          // Don't fail the whole operation if status update fails
+        }
       }
       
       // Send notifications to resident (don't fail if this errors)
@@ -1362,27 +1543,41 @@ const DocumentsRecords = () => {
       });
     } catch (err) {
       console.error('Error generating PDF:', err);
+      console.error('Error details:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+        record: record
+      });
+      
       let errorMessage = 'Failed to generate PDF.';
       
       if (err.response) {
-        errorMessage = err.response?.data?.message || err.response?.data?.error || errorMessage;
+        const errorData = err.response.data;
+        errorMessage = errorData?.message || errorData?.error || errorMessage;
         
         // Provide more specific error messages
         if (err.response.status === 400) {
-          errorMessage = err.response?.data?.message || 'Invalid request. Please check the document status.';
+          errorMessage = errorData?.message || 'Invalid request. Please check the document status.';
         } else if (err.response.status === 404) {
-          errorMessage = err.response?.data?.message || 'Document or resident profile not found.';
+          if (errorData?.error_code === 'RESIDENT_NOT_FOUND') {
+            errorMessage = '❌ Resident profile not found for this document. The user may not have completed their resident profile. Please contact the administrator.';
+          } else {
+            errorMessage = errorData?.message || 'Document or resident profile not found.';
+          }
         } else if (err.response.status === 500) {
-          errorMessage = 'Server error occurred while generating PDF. Please try again.';
+          errorMessage = errorData?.message || errorData?.error || 'Server error occurred while generating PDF. Please check the logs or try again.';
         }
       } else if (err.request) {
         errorMessage = 'Network error. Please check your connection and try again.';
+      } else {
+        errorMessage = err.message || errorMessage;
       }
       
       setToastMessage({
         type: 'error',
         message: `❌ ${errorMessage}`,
-        duration: 5000
+        duration: 7000
       });
     } finally {
       setGeneratingPdf(null);
@@ -1415,7 +1610,9 @@ const DocumentsRecords = () => {
     }
 
     // Validate that PDF exists before attempting to download
-    if (!record.pdfPath) {
+    // Check both camelCase and snake_case versions
+    const pdfPath = record.pdfPath || record.pdf_path;
+    if (!pdfPath) {
       // Try to refresh the record first in case pdfPath wasn't loaded
       console.warn('PDF path missing, attempting to refresh record data...', {
         recordId: record.id,
@@ -1429,16 +1626,21 @@ const DocumentsRecords = () => {
         const res = await axiosInstance.get(endpoint);
         const updatedRecord = res.data.find(r => r.id === record.id);
         
-        if (updatedRecord && updatedRecord.pdf_path) {
+        if (updatedRecord && (updatedRecord.pdf_path || updatedRecord.pdfPath)) {
+          const updatedPdfPath = updatedRecord.pdf_path || updatedRecord.pdfPath;
           // Update the record in local state
           setRecords(records.map(r => 
             r.id === record.id 
-              ? { ...r, pdfPath: updatedRecord.pdf_path }
+              ? { ...r, pdfPath: updatedPdfPath, pdf_path: updatedPdfPath }
               : r
           ));
           
           // Retry with updated record
-          return handleDownloadPdf({ ...record, pdfPath: updatedRecord.pdf_path });
+          return handleDownloadPdf({ 
+            ...record, 
+            pdfPath: updatedPdfPath, 
+            pdf_path: updatedPdfPath 
+          });
         }
       } catch (refreshErr) {
         console.error('Failed to refresh record:', refreshErr);
@@ -1464,7 +1666,7 @@ const DocumentsRecords = () => {
         id: record.id,
         documentType: record.documentType,
         userName: record.user?.name,
-        pdfPath: record.pdfPath,
+        pdfPath: pdfPath,
         status: record.status
       });
       
@@ -1580,7 +1782,9 @@ const DocumentsRecords = () => {
     }
 
     // Validate that PDF exists before attempting to view
-    if (!record.pdfPath) {
+    // Check both camelCase and snake_case versions
+    const pdfPath = record.pdfPath || record.pdf_path;
+    if (!pdfPath) {
       // Try to refresh the record first in case pdfPath wasn't loaded
       console.warn('PDF path missing, attempting to refresh record data...', {
         recordId: record.id,
@@ -1594,16 +1798,17 @@ const DocumentsRecords = () => {
         const res = await axiosInstance.get(endpoint);
         const updatedRecord = res.data.find(r => r.id === record.id);
         
-        if (updatedRecord && updatedRecord.pdf_path) {
+        if (updatedRecord && (updatedRecord.pdf_path || updatedRecord.pdfPath)) {
+          const updatedPdfPath = updatedRecord.pdf_path || updatedRecord.pdfPath;
           // Update the record in local state
           setRecords(records.map(r => 
             r.id === record.id 
-              ? { ...r, pdfPath: updatedRecord.pdf_path }
+              ? { ...r, pdfPath: updatedPdfPath, pdf_path: updatedPdfPath }
               : r
           ));
           
           // Retry with updated record
-          return handleViewPdf({ ...record, pdfPath: updatedRecord.pdf_path });
+          return handleViewPdf({ ...record, pdfPath: updatedPdfPath, pdf_path: updatedPdfPath });
         }
       } catch (refreshErr) {
         console.error('Failed to refresh record:', refreshErr);
@@ -1629,7 +1834,7 @@ const DocumentsRecords = () => {
         id: record.id,
         documentType: record.documentType,
         userName: record.user?.name,
-        pdfPath: record.pdfPath,
+        pdfPath: pdfPath,
         status: record.status
       });
       
@@ -2810,7 +3015,7 @@ const DocumentsRecords = () => {
                     }`}>
                       {activeTab === 'requests' 
                         ? records.filter(r => r.paymentStatus !== 'paid').length 
-                        : records.filter(r => r.paymentStatus === 'paid' && r.status === 'Approved').length
+                        : records.filter(r => r.paymentStatus === 'paid' && (r.status === 'Approved' || r.status === 'Processing')).length
                       }
                     </span>
                   </div>
@@ -2951,7 +3156,7 @@ const DocumentsRecords = () => {
                   }`}
                 >
                   <DocumentIcon className="w-5 h-5" />
-                  Document Records ({records.filter(r => r.paymentStatus === 'paid' && r.status === 'Approved').length})
+                  Document Records ({records.filter(r => r.paymentStatus === 'paid' && (r.status === 'Approved' || r.status === 'Processing')).length})
                 </button>
               </div>
 
@@ -3152,10 +3357,10 @@ const DocumentsRecords = () => {
                               </div>
                             ) : (
                               <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 bg-gradient-to-br from-slate-100 to-slate-200 rounded-full flex items-center justify-center flex-shrink-0">
-                                  <CurrencyDollarIcon className="w-4 h-4 text-slate-400" />
+                                <div className="w-8 h-8 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                  <GiftIcon className="w-4 h-4 text-blue-600" />
                                 </div>
-                                <span className="text-slate-400 text-sm font-medium">No payment</span>
+                                <span className="text-blue-600 text-sm font-semibold bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200">Free</span>
                               </div>
                             )}
                           </td>
@@ -3260,19 +3465,25 @@ const DocumentsRecords = () => {
                           <td className="px-6 py-4">
                             <div className="flex items-center justify-end gap-2 flex-wrap">
                               <ActionsDropdown
-                                record={record}
+                                record={{
+                                  ...record,
+                                  pdfPath: record.pdfPath || record.pdf_path || null,
+                                  pdf_path: record.pdf_path || record.pdfPath || null
+                                }}
                                 activeTab={activeTab}
                                 onViewDetails={handleShowDetails}
                                 onEditRecord={handleEdit}
                                 onApprove={handleApprove}
                                 onDeny={handleDeny}
                                 onConfirmPayment={handleConfirmPayment}
+                                onMarkAsFree={handleMarkAsFree}
                                 onGeneratePdf={handleGeneratePdf}
                                 onViewPdf={handleViewPdf}
                                 onDownloadPdf={handleDownloadPdf}
                                 onGenerateReceipt={handleGenerateReceipt}
                                 onDownloadReceipt={handleDownloadReceipt}
                                 confirmingPayment={confirmingPayment}
+                                markingAsFree={markingAsFree}
                                 generatingPdf={generatingPdf}
                               />
                             </div>
@@ -4038,6 +4249,113 @@ const DocumentsRecords = () => {
                       <>
                         <CurrencyDollarIcon className="w-5 h-5" />
                         Confirm Payment
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Free Document Confirmation Modal */}
+        {showFreeConfirmModal && freeConfirmRecord && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-fade-in">
+            <div className="bg-gradient-to-br from-white via-blue-50 to-indigo-50 rounded-3xl shadow-2xl border border-blue-200 w-full max-w-2xl relative animate-scale-in">
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-3xl p-6">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-white/20 rounded-full p-2">
+                      <GiftIcon className="w-8 h-8 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-extrabold text-white tracking-tight drop-shadow-lg">
+                        Mark as Free Document
+                      </h2>
+                      <p className="text-blue-100 text-sm mt-1">Request #{freeConfirmRecord.id} - {freeConfirmRecord.documentType}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowFreeConfirmModal(false);
+                      setFreeConfirmRecord(null);
+                    }}
+                    disabled={loading || markingAsFree === freeConfirmRecord?.id}
+                    className="text-white hover:text-blue-200 transition-colors duration-200 text-2xl font-bold focus:outline-none focus:ring-2 focus:ring-blue-300 rounded-full p-2 hover:bg-white/10 disabled:opacity-50"
+                  >
+                    <XMarkIcon className="w-6 h-6" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-8 space-y-6">
+                {/* Document Information */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <InformationCircleIcon className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h3 className="font-bold text-blue-900 mb-2">Document Request Details</h3>
+                      <div className="space-y-1 text-sm text-blue-800">
+                        <p><span className="font-semibold">Resident:</span> {freeConfirmRecord.user?.name || (freeConfirmRecord.resident ? `${freeConfirmRecord.resident.first_name} ${freeConfirmRecord.resident.last_name}` : 'N/A')}</p>
+                        <p><span className="font-semibold">Document Type:</span> {freeConfirmRecord.documentType}</p>
+                        <p><span className="font-semibold">Purpose:</span> {freeConfirmRecord.purpose || 'N/A'}</p>
+                        <p><span className="font-semibold">Date Requested:</span> {freeConfirmRecord.requestDate ? new Date(freeConfirmRecord.requestDate).toLocaleDateString() : 'N/A'}</p>
+                        <div className="mt-3 pt-3 border-t border-blue-300">
+                          <p className="text-lg"><span className="font-semibold">Payment Amount:</span> <span className="text-2xl font-bold text-blue-900">₱0.00 (Free)</span></p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Information Message */}
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <CheckCircleIcon className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm text-emerald-800">
+                        <strong>After confirmation:</strong>
+                      </p>
+                      <ul className="list-disc list-inside text-sm text-emerald-700 mt-2 space-y-1">
+                        <li>Document will be marked as "Paid" (free)</li>
+                        <li>Document will move to Document Records tab</li>
+                        <li>Resident will be notified that their document is ready</li>
+                        <li>No receipt will be generated for free documents</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-gray-200">
+                  <button
+                    onClick={() => {
+                      if (!loading && markingAsFree !== freeConfirmRecord?.id) {
+                        setShowFreeConfirmModal(false);
+                        setFreeConfirmRecord(null);
+                      }
+                    }}
+                    disabled={loading || markingAsFree === freeConfirmRecord?.id}
+                    className="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleFreeConfirm}
+                    disabled={loading || markingAsFree === freeConfirmRecord?.id}
+                    className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-medium transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+                  >
+                    {(loading || markingAsFree === freeConfirmRecord?.id) ? (
+                      <>
+                        <ArrowPathIcon className="w-5 h-5 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <GiftIcon className="w-5 h-5" />
+                        Mark as Free
                       </>
                     )}
                   </button>

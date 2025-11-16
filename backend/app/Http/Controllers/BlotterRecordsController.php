@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\BlotterRecord;
+use App\Models\User;
+use App\Models\Resident;
 use App\Services\NoShowService;
 use App\Services\ActivityLogService;
+use App\Notifications\WalkInAppointmentScheduledNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Mail;
@@ -50,6 +53,9 @@ class BlotterRecordsController extends Controller
                 'contact_number' => 'required|string|max:255',
                 'email' => 'required|email|max:255',
                 'remarks' => 'nullable|string',
+                'status' => 'nullable|string|in:Ongoing,Pending,Scheduled,Completed,Cancelled,No Show',
+                'appointment_date' => 'nullable|date|after_or_equal:today',
+                'appointment_time' => 'nullable|string',
             ]);
 
             \Log::info('Validation passed', ['validated_data' => $validated]);
@@ -82,6 +88,59 @@ class BlotterRecordsController extends Controller
             }
 
             \Log::info('Blotter record created successfully', ['record_id' => $record->id]);
+
+            // Send notifications if this is a walk-in appointment (status is Scheduled and has appointment date/time)
+            if ($record->status === 'Scheduled' && $record->appointment_date && $record->appointment_time) {
+                try {
+                    // Try to find user by email or resident_id
+                    $user = null;
+                    
+                    // First, try to find by email
+                    if ($record->email) {
+                        $user = User::where('email', $record->email)->first();
+                    }
+                    
+                    // If not found by email and resident_id exists, try to find by resident_id
+                    if (!$user && $record->resident_id) {
+                        $resident = Resident::find($record->resident_id);
+                        if ($resident && $resident->user_id) {
+                            $user = User::find($resident->user_id);
+                        }
+                    }
+                    
+                    // If user found, send notification (email + database/notification bell)
+                    if ($user) {
+                        try {
+                            $user->notify(new WalkInAppointmentScheduledNotification($record));
+                            \Log::info('Walk-in appointment notification sent', [
+                                'user_id' => $user->id,
+                                'email' => $user->email,
+                                'record_id' => $record->id,
+                                'case_number' => $record->case_number
+                            ]);
+                        } catch (\Exception $notifyException) {
+                            \Log::warning('Failed to send walk-in appointment notification', [
+                                'error' => $notifyException->getMessage(),
+                                'user_id' => $user->id,
+                                'record_id' => $record->id
+                            ]);
+                            // Continue even if notification fails
+                        }
+                    } else {
+                        \Log::info('User not found for walk-in appointment notification', [
+                            'email' => $record->email,
+                            'resident_id' => $record->resident_id,
+                            'record_id' => $record->id
+                        ]);
+                    }
+                } catch (\Exception $notificationError) {
+                    \Log::warning('Error sending walk-in appointment notification', [
+                        'error' => $notificationError->getMessage(),
+                        'record_id' => $record->id
+                    ]);
+                    // Continue even if notification fails - record is still created
+                }
+            }
 
             return response()->json([
                 'message' => 'Blotter complaint submitted successfully.',

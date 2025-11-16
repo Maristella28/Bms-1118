@@ -73,13 +73,7 @@ const StaffManagement = () => {
         beneficiaries: false
       }
     },
-    command_center: { 
-      access: false, 
-      sub_permissions: {
-        disaster_records: false,
-        emergency_hotlines: false
-      }
-    },
+    command_center: { access: false },
     projects: { access: false },
     inventory: { 
       access: false, 

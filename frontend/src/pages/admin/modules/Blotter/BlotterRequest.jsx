@@ -3,7 +3,7 @@ import axiosInstance from '../../../../utils/axiosConfig';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../../../../components/Navbar';
 import Sidebar from '../../../../components/Sidebar';
-import { ChevronDownIcon, CheckCircleIcon, XMarkIcon } from '@heroicons/react/24/solid';
+import { ChevronDownIcon, CheckCircleIcon, XMarkIcon, ArrowLeftIcon } from '@heroicons/react/24/solid';
 
 // Actions Dropdown Component
 const ActionsDropdown = ({ request, onApprove, onDecline, actionLoading }) => {
@@ -374,15 +374,13 @@ const BlotterRequest = () => {
                   </svg>
                   Refresh
                 </button>
-                {/* View Appointments Button */}
+                {/* Back to Blotter Record Button */}
             <button
               onClick={() => navigate('/admin/blotterRecords')}
                   className="group relative bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl flex items-center gap-2 text-sm font-semibold transition-all duration-300 transform hover:-translate-y-0.5"
             >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                  </svg>
-                  View Appointments Table
+                  <ArrowLeftIcon className="w-5 h-5" />
+                  Back to Blotter Record
             </button>
               </div>
             </div>

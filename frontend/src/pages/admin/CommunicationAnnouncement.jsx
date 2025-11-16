@@ -4,6 +4,7 @@ import Navbar from "../../components/Navbar";
 import Sidebar from "../../components/Sidebar";
 import { useAuth } from '../../contexts/AuthContext';
 import axiosInstance from '../../utils/axiosConfig';
+import ActionsDropdown from "./modules/communication/components/ActionsDropdown";
 import {
   EyeIcon,
   PencilIcon,
@@ -22,6 +23,8 @@ import {
   DocumentTextIcon,
   CalendarIcon,
   UserIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from '@heroicons/react/24/outline';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
@@ -87,6 +90,10 @@ const CommunicationAnnouncement = () => {
   const [loading, setLoading] = useState(false);
   const [deletingAnnouncementId, setDeletingAnnouncementId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   
   // Modal states
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -385,6 +392,22 @@ const CommunicationAnnouncement = () => {
     announcement.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     announcement.content.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Pagination utility functions
+  const getPaginatedAnnouncements = (announcementsList) => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return announcementsList.slice(startIndex, endIndex);
+  };
+
+  const getTotalPages = (announcementsList) => {
+    return Math.ceil(announcementsList.length / itemsPerPage);
+  };
+
+  // Reset to first page when search term changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const getStatusCount = (status) => {
     return announcements.filter(announcement => announcement.status === status).length;
@@ -1081,7 +1104,7 @@ const CommunicationAnnouncement = () => {
                           Date Created
                         </div>
                       </th>
-                      <th className="px-6 py-4 text-left font-bold text-gray-900 min-w-[280px]">
+                      <th className="px-4 py-4 text-left font-bold text-gray-900 min-w-[100px]">
                         <div className="flex items-center gap-2">
                           <ArrowPathIcon className="w-4 h-4 text-gray-600" />
                           Actions
@@ -1125,7 +1148,7 @@ const CommunicationAnnouncement = () => {
                         </td>
                       </tr>
                     ) : (
-                      filteredAnnouncements.map((announcement, index) => (
+                      getPaginatedAnnouncements(filteredAnnouncements).map((announcement, index) => (
                         <tr
                           key={announcement.id}
                           className="hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 transition-all duration-300 group border-b border-gray-100 hover:border-green-200 hover:shadow-sm animate-fade-in-up"
@@ -1168,61 +1191,17 @@ const CommunicationAnnouncement = () => {
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-4 py-4">
                             <div className="flex gap-2 flex-wrap">
-                              <button
-                                onClick={() => setSelectedAnnouncement(announcement)}
-                                className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white px-3 py-2 rounded-lg text-xs font-semibold shadow-md flex items-center gap-1.5 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 hover:shadow-lg"
-                              >
-                                <EyeIcon className="w-3.5 h-3.5" />
-                                <span className="hidden sm:inline">View</span>
-                              </button>
-
-                              <button
-                                onClick={() => toggleStatus(announcement.id)}
-                                className={`px-3 py-2 rounded-lg text-xs font-semibold shadow-md flex items-center gap-1.5 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-opacity-50 hover:shadow-lg ${
-                                  announcement.status === 'posted'
-                                    ? 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white focus:ring-red-500'
-                                    : 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white focus:ring-green-500'
-                                }`}
-                              >
-                                {announcement.status === 'posted' ? (
-                                  <EyeSlashIcon className="w-3.5 h-3.5" />
-                                ) : (
-                                  <ArrowUpOnSquareIcon className="w-3.5 h-3.5" />
-                                )}
-                                <span className="hidden sm:inline">
-                                  {announcement.status === 'posted' ? 'Hide' : 'Publish'}
-                                </span>
-                              </button>
-
-                              <button
-                                onClick={() => handleEdit(announcement)}
-                                className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white px-3 py-2 rounded-lg text-xs font-semibold shadow-md flex items-center gap-1.5 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50 hover:shadow-lg"
-                              >
-                                <PencilIcon className="w-3.5 h-3.5" />
-                                <span className="hidden sm:inline">Edit</span>
-                              </button>
-
-                              <button
-                                onClick={() => handleDeleteClick(announcement.id)}
-                                disabled={deletingAnnouncementId === announcement.id || loading}
-                                className={`bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-3 py-2 rounded-lg text-xs font-semibold shadow-md flex items-center gap-1.5 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 hover:shadow-lg ${
-                                  deletingAnnouncementId === announcement.id || loading ? 'opacity-50 cursor-not-allowed' : ''
-                                }`}
-                              >
-                                {deletingAnnouncementId === announcement.id ? (
-                                  <>
-                                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                    <span className="hidden sm:inline">Deleting...</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <TrashIcon className="w-3.5 h-3.5" />
-                                    <span className="hidden sm:inline">Delete</span>
-                                  </>
-                                )}
-                              </button>
+                              <ActionsDropdown
+                                announcement={announcement}
+                                onViewDetails={setSelectedAnnouncement}
+                                onEdit={handleEdit}
+                                onToggleStatus={toggleStatus}
+                                onDelete={handleDeleteClick}
+                                deletingAnnouncementId={deletingAnnouncementId}
+                                loading={loading}
+                              />
                             </div>
                           </td>
                         </tr>
@@ -1232,6 +1211,74 @@ const CommunicationAnnouncement = () => {
                 </table>
               )}
             </div>
+
+            {/* Pagination Controls */}
+            {!loading && filteredAnnouncements.length > 0 && (
+              <div className="bg-gradient-to-r from-gray-50 to-white border-t border-gray-200 px-6 py-4">
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm text-gray-700">
+                      Page {currentPage} of {getTotalPages(filteredAnnouncements)} ({filteredAnnouncements.length} announcements)
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm text-gray-700">Items per page:</label>
+                      <select 
+                        value={itemsPerPage}
+                        onChange={(e) => {
+                          setItemsPerPage(Number(e.target.value));
+                          setCurrentPage(1);
+                        }}
+                        className="border border-gray-300 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      >
+                        <option value={5}>5</option>
+                        <option value={10}>10</option>
+                        <option value={25}>25</option>
+                        <option value={50}>50</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                    >
+                      <ChevronLeftIcon className="w-4 h-4" />
+                      <span>Previous</span>
+                    </button>
+                    
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, getTotalPages(filteredAnnouncements)) }, (_, i) => {
+                        const page = i + 1;
+                        return (
+                          <button
+                            key={page}
+                            onClick={() => setCurrentPage(page)}
+                            className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                              currentPage === page
+                                ? 'bg-green-500 text-white'
+                                : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    
+                    <button
+                      onClick={() => setCurrentPage(Math.min(getTotalPages(filteredAnnouncements), currentPage + 1))}
+                      disabled={currentPage === getTotalPages(filteredAnnouncements)}
+                      className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                    >
+                      <span>Next</span>
+                      <ChevronRightIcon className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

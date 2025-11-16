@@ -213,21 +213,7 @@ const Sidebar = ({ permissions: propPermissions = {} }) => {
       title: "Disaster Response", 
       icon: <AlertTriangle size={iconSize} />, 
       path: `/${userRole}/disasterEmergency`,
-      module: "command_center",
-      subItems: [
-        { 
-          title: "Disaster Records", 
-          path: `/${userRole}/disasterEmergency?tab=records`,
-          module: "command_center",
-          subModule: "disaster_records"
-        },
-        { 
-          title: "Emergency Hotlines", 
-          path: `/${userRole}/disasterEmergency?tab=hotlines`,
-          module: "command_center",
-          subModule: "emergency_hotlines"
-        }
-      ]
+      module: "command_center"
     },
     { 
       title: "Projects", 

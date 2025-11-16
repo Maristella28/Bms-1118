@@ -168,11 +168,17 @@ class ResidentController extends Controller
                 $profileData = $resident->profile ? $resident->profile->toArray() : [];
                 $residentData = $resident->toArray();
 
-                return array_merge($residentData, $profileData, [
+                // Ensure resident ID is preserved (profile might have its own id)
+                $mergedData = array_merge($residentData, $profileData, [
                     'update_status' => $updateStatus,
                     'for_review' => (bool) $resident->for_review, // Use actual database value
                     'last_modified' => $resident->last_modified ?? $resident->updated_at,
                 ]);
+                
+                // Always preserve the resident's primary key id
+                $mergedData['id'] = $resident->id;
+                
+                return $mergedData;
             });
 
             \Log::info('Found residents', ['count' => $processedResidents->count()]);
@@ -745,31 +751,98 @@ class ResidentController extends Controller
 
     /**
      * Soft delete a resident
+     * Accessible by: Admin users and Staff with residents permission
      *
+     * @param \Illuminate\Http\Request $request
      * @param int $id
      * @return \Illuminate\Http\JsonResponse
      */
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         try {
-            $resident = Resident::findOrFail($id);
+            // Check permission using trait
+            $permissionCheck = $this->checkModulePermission($request, 'residentsRecords', 'residents');
+            if ($permissionCheck !== null) {
+                return $permissionCheck; // Return error response
+            }
+
+            // Cast ID to integer to ensure proper type
+            $residentId = (int) $id;
             
-            // Log the deletion
-            ActivityLogService::logDeleted($resident, request());
+            // Log the ID being received
+            \Log::info('Attempting to delete resident', [
+                'original_id' => $id,
+                'original_id_type' => gettype($id),
+                'casted_id' => $residentId,
+                'user_id' => $request->user()?->id
+            ]);
+
+            // Try to find the resident (including soft deleted ones to check)
+            $resident = Resident::withTrashed()->find($residentId);
             
-            // Perform soft delete
+            // If not found by primary key, try by resident_id string field
+            if (!$resident) {
+                \Log::warning('Resident not found by primary key, trying by resident_id field', [
+                    'searched_id' => $residentId,
+                    'string_id' => (string) $id
+                ]);
+                $resident = Resident::withTrashed()->where('resident_id', (string) $id)->first();
+            }
+            
+            if (!$resident) {
+                \Log::error('Resident not found for deletion', [
+                    'original_id' => $id,
+                    'casted_id' => $residentId,
+                ]);
+                
+                return response()->json([
+                    'message' => 'Resident not found.',
+                    'error' => 'Resident with ID ' . $id . ' does not exist.'
+                ], 404);
+            }
+            
+            // Check if resident is already deleted
+            if ($resident->trashed()) {
+                return response()->json([
+                    'message' => 'Resident is already disabled.',
+                ], 400);
+            }
+            
+            // Perform soft delete first (faster operation)
             $resident->delete();
             
             // If resident has an associated profile, soft delete that too
-            if ($resident->profile) {
+            if ($resident->profile && !$resident->profile->trashed()) {
                 $resident->profile->delete();
+            }
+            
+            // Log the deletion asynchronously (don't block the response)
+            try {
+                ActivityLogService::logDeleted($resident, $request);
+            } catch (\Exception $logError) {
+                // Don't fail the deletion if logging fails
+                \Log::warning('Failed to log resident deletion', [
+                    'resident_id' => $resident->id,
+                    'error' => $logError->getMessage()
+                ]);
             }
 
             return response()->json([
+                'success' => true,
                 'message' => 'Resident has been moved to Recently Deleted.',
-                'resident' => $resident
+                'resident_id' => $resident->id
+            ], 200);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            \Log::error('Resident not found for deletion', [
+                'id' => $id,
+                'error' => $e->getMessage()
             ]);
 
+            return response()->json([
+                'message' => 'Resident not found.',
+                'error' => 'Resident with ID ' . $id . ' does not exist.'
+            ], 404);
         } catch (\Exception $e) {
             \Log::error('Failed to delete resident', [
                 'id' => $id,
@@ -800,14 +873,40 @@ class ResidentController extends Controller
                 return $permissionCheck; // Return error response
             }
             
-            // Fetch soft deleted residents
+            // Fetch soft deleted residents with all necessary relationships
             $deletedResidents = Resident::onlyTrashed()
                 ->with(['profile' => function($query) {
                     $query->withTrashed();
-                }])
-                ->get();
+                }, 'user'])
+                ->get()
+                ->map(function ($resident) {
+                    // Map the data to match frontend expectations
+                    return [
+                        'id' => $resident->id,
+                        'user_id' => $resident->user_id,
+                        'profile_id' => $resident->profile_id,
+                        'residents_id' => $resident->profile->residents_id ?? $resident->resident_id ?? null,
+                        'first_name' => $resident->first_name,
+                        'middle_name' => $resident->middle_name,
+                        'last_name' => $resident->last_name,
+                        'name_suffix' => $resident->name_suffix ?? $resident->suffix ?? null,
+                        'suffix' => $resident->name_suffix ?? $resident->suffix ?? null,
+                        'age' => $resident->age,
+                        'nationality' => $resident->nationality,
+                        'sex' => $resident->sex,
+                        'civil_status' => $resident->civil_status,
+                        'voter_status' => $resident->voter_status,
+                        'voters_id_number' => $resident->voters_id_number ?? $resident->voters_id ?? null,
+                        'avatar' => $resident->profile->avatar ?? $resident->current_photo ?? null,
+                        'current_photo' => $resident->current_photo,
+                        'deleted_at' => $resident->deleted_at,
+                        'created_at' => $resident->created_at,
+                        'updated_at' => $resident->updated_at,
+                    ];
+                });
 
             return response()->json([
+                'success' => true,
                 'residents' => $deletedResidents,
                 'message' => 'Successfully retrieved deleted residents'
             ]);

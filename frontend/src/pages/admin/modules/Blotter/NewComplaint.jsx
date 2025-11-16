@@ -4,7 +4,7 @@
     import axios from '../../../../utils/axiosConfig';
     import Navbar from '../../../../components/Navbar';
     import Sidebar from '../../../../components/Sidebar';
-    import { UserIcon, DocumentTextIcon, MapPinIcon, ClockIcon, ExclamationTriangleIcon, PaperClipIcon, ChatBubbleLeftRightIcon, EnvelopeIcon, PhoneIcon, XMarkIcon, CheckCircleIcon } from '@heroicons/react/24/solid';
+    import { UserIcon, DocumentTextIcon, MapPinIcon, ClockIcon, ExclamationTriangleIcon, PaperClipIcon, ChatBubbleLeftRightIcon, EnvelopeIcon, PhoneIcon, XMarkIcon, CheckCircleIcon, ArrowLeftIcon } from '@heroicons/react/24/solid';
 
     const complaintTypes = [
     'Physical Injury',
@@ -278,6 +278,16 @@
             <Sidebar />
             <main className="bg-gradient-to-br from-green-50 to-white min-h-screen ml-64 pt-36 px-6 pb-16 font-sans">
                 <div className="bg-white rounded-3xl shadow-2xl border border-green-100 w-full max-w-6xl p-0 relative mt-10 mx-auto overflow-hidden">
+                    {/* Back Button */}
+                    <div className="px-8 pt-6 pb-4">
+                        <button
+                            onClick={() => navigate('/admin/blotterRecords')}
+                            className="flex items-center gap-3 text-white bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 font-bold transition-all duration-300 px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 border-2 border-green-700"
+                        >
+                            <ArrowLeftIcon className="w-6 h-6" />
+                            <span className="text-lg">Back to Blotter Records</span>
+                        </button>
+                    </div>
                     {/* Modern Colored Header */}
                     <div className="bg-gradient-to-r from-green-600 to-emerald-600 px-8 py-6 rounded-t-3xl flex items-center gap-3 shadow-md">
                         <ChatBubbleLeftRightIcon className="w-8 h-8 text-white" />
@@ -459,6 +469,128 @@
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* Complainant Contact Information */}
+                                <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-lg hover:shadow-xl transition-all duration-200 ease-in-out">
+                                    <div className="bg-green-50 rounded-xl p-4 mb-6 border border-green-100">
+                                        <h3 className="text-xl font-bold text-green-700 flex items-center gap-3">
+                                            <PhoneIcon className="w-6 h-6 text-green-600" /> Complainant Contact Information
+                                        </h3>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-semibold mb-2 text-gray-700 flex items-center gap-2">
+                                                    <PhoneIcon className="w-4 h-4 text-green-600" /> Contact Number <span className="text-red-500">*</span>
+                                                </label>
+                                                <div className="relative">
+                                                    <input
+                                                        type="text"
+                                                        name="complainant_contact_number"
+                                                        value={form.complainant_contact_number}
+                                                        onChange={handleChange}
+                                                        className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all duration-200 ease-in-out shadow-sm hover:shadow-md"
+                                                        placeholder="e.g., +639123456789"
+                                                    />
+                                                    {form.complainant_contact_number && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setForm(f => ({ ...f, complainant_contact_number: '' }))}
+                                                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors duration-200"
+                                                        >
+                                                            <XMarkIcon className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-semibold mb-2 text-gray-700 flex items-center gap-2">
+                                                    <EnvelopeIcon className="w-4 h-4 text-green-600" /> Email <span className="text-red-500">*</span>
+                                                </label>
+                                                <div className="relative">
+                                                    <input
+                                                        type="email"
+                                                        name="complainant_email"
+                                                        value={form.complainant_email}
+                                                        onChange={handleChange}
+                                                        className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all duration-200 ease-in-out shadow-sm hover:shadow-md"
+                                                        placeholder="e.g., john.doe@email.com"
+                                                    />
+                                                    {form.complainant_email && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setForm(f => ({ ...f, complainant_email: '' }))}
+                                                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors duration-200"
+                                                        >
+                                                            <XMarkIcon className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Respondent Contact Information */}
+                                <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-lg hover:shadow-xl transition-all duration-200 ease-in-out">
+                                    <div className="bg-blue-50 rounded-xl p-4 mb-6 border border-blue-100">
+                                        <h3 className="text-xl font-bold text-blue-700 flex items-center gap-3">
+                                            <PhoneIcon className="w-6 h-6 text-blue-600" /> Respondent Contact Information
+                                        </h3>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-semibold mb-2 text-gray-700 flex items-center gap-2">
+                                                    <PhoneIcon className="w-4 h-4 text-blue-600" /> Contact Number <span className="text-red-500">*</span>
+                                                </label>
+                                                <div className="relative">
+                                                    <input
+                                                        type="text"
+                                                        name="respondent_contact_number"
+                                                        value={form.respondent_contact_number}
+                                                        onChange={handleChange}
+                                                        className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 ease-in-out shadow-sm hover:shadow-md"
+                                                        placeholder="e.g., +639123456789"
+                                                    />
+                                                    {form.respondent_contact_number && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setForm(f => ({ ...f, respondent_contact_number: '' }))}
+                                                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors duration-200"
+                                                        >
+                                                            <XMarkIcon className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-semibold mb-2 text-gray-700 flex items-center gap-2">
+                                                    <EnvelopeIcon className="w-4 h-4 text-blue-600" /> Email <span className="text-red-500">*</span>
+                                                </label>
+                                                <div className="relative">
+                                                    <input
+                                                        type="email"
+                                                        name="respondent_email"
+                                                        value={form.respondent_email}
+                                                        onChange={handleChange}
+                                                        className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 ease-in-out shadow-sm hover:shadow-md"
+                                                        placeholder="e.g., john.doe@email.com"
+                                                    />
+                                                    {form.respondent_email && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setForm(f => ({ ...f, respondent_email: '' }))}
+                                                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors duration-200"
+                                                        >
+                                                            <XMarkIcon className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             {/* Right Column */}
@@ -515,235 +647,124 @@
                                         </h3>
                                     </div>
                                     <div className="space-y-4">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-sm font-semibold mb-2 text-gray-700">Witnesses (comma separated)</label>
-                                                <input
-                                                    type="text"
-                                                    name="witnesses"
-                                                    value={form.witnesses}
-                                                    onChange={handleChange}
-                                                    className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all duration-200 ease-in-out shadow-sm hover:shadow-md"
-                                                    placeholder="Enter witness names separated by commas (e.g., Juan Dela Cruz, Maria Santos)"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-semibold mb-2 text-gray-700 flex items-center gap-2">
-                                                    <PaperClipIcon className="w-4 h-4 text-green-600" /> Supporting Documents (optional)
-                                                </label>
-                                                <div 
-                                                    className={`relative border-2 border-dashed rounded-xl p-6 text-center transition-all duration-200 ease-in-out ${
-                                                        isDragOver 
-                                                            ? 'border-green-400 bg-green-50' 
-                                                            : form.supporting_documents 
-                                                                ? 'border-green-300 bg-green-50' 
-                                                                : 'border-gray-300 hover:border-green-400 hover:bg-gray-50'
-                                                    }`}
-                                                    onDragOver={handleDragOver}
-                                                    onDragLeave={handleDragLeave}
-                                                    onDrop={handleDrop}
-                                                >
-                                                    {form.supporting_documents ? (
-                                                        <div className="space-y-3">
-                                                            <div className="flex items-center justify-center gap-2 text-green-600">
-                                                                <CheckCircleIcon className="w-6 h-6" />
-                                                                <span className="font-semibold">File Selected</span>
-                                                            </div>
-                                                            <div className="text-sm text-gray-700">
-                                                                <p className="font-medium">{form.supporting_documents.name}</p>
-                                                                <p className="text-gray-500">
-                                                                    {(form.supporting_documents.size / 1024 / 1024).toFixed(2)} MB
-                                                                </p>
-                                                            </div>
-                                                            <div className="flex gap-2 justify-center">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={removeFile}
-                                                                    className="px-4 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200 text-sm font-medium"
-                                                                >
-                                                                    Remove File
-                                                                </button>
-                                                                <label className="px-4 py-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors duration-200 text-sm font-medium cursor-pointer">
-                                                                    Change File
-                                                                    <input
-                                                                        type="file"
-                                                                        name="supporting_documents"
-                                                                        onChange={handleFileChange}
-                                                                        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                                                                        className="hidden"
-                                                                    />
-                                                                </label>
-                                                            </div>
+                                        {/* Witnesses */}
+                                        <div>
+                                            <label className="block text-sm font-semibold mb-2 text-gray-700">Witnesses (comma separated)</label>
+                                            <input
+                                                type="text"
+                                                name="witnesses"
+                                                value={form.witnesses}
+                                                onChange={handleChange}
+                                                className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all duration-200 ease-in-out shadow-sm hover:shadow-md"
+                                                placeholder="Enter witness names separated by commas (e.g., Juan Dela Cruz, Maria Santos)"
+                                            />
+                                        </div>
+
+                                        {/* Supporting Documents */}
+                                        <div>
+                                            <label className="block text-sm font-semibold mb-2 text-gray-700 flex items-center gap-2">
+                                                <PaperClipIcon className="w-4 h-4 text-green-600" /> Supporting Documents (optional)
+                                            </label>
+                                            <div 
+                                                className={`relative border-2 border-dashed rounded-xl p-6 text-center transition-all duration-200 ease-in-out ${
+                                                    isDragOver 
+                                                        ? 'border-green-400 bg-green-50' 
+                                                        : form.supporting_documents 
+                                                            ? 'border-green-300 bg-green-50' 
+                                                            : 'border-gray-300 hover:border-green-400 hover:bg-gray-50'
+                                                }`}
+                                                onDragOver={handleDragOver}
+                                                onDragLeave={handleDragLeave}
+                                                onDrop={handleDrop}
+                                            >
+                                                {form.supporting_documents ? (
+                                                    <div className="space-y-3">
+                                                        <div className="flex items-center justify-center gap-2 text-green-600">
+                                                            <CheckCircleIcon className="w-6 h-6" />
+                                                            <span className="font-semibold">File Selected</span>
                                                         </div>
-                                                    ) : (
-                                                        <div className="space-y-3">
-                                                            <div className="flex items-center justify-center gap-2 text-gray-400">
-                                                                <PaperClipIcon className="w-8 h-8" />
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-lg font-medium text-gray-700 mb-1">
-                                                                    Drop files here or click to upload
-                                                                </p>
-                                                                <p className="text-sm text-gray-500 mb-3">
-                                                                    PDF, DOC, DOCX, JPG, JPEG, PNG up to 10MB
-                                                                </p>
-                                                                <label className="inline-flex items-center px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg cursor-pointer transition-colors duration-200 text-sm font-medium">
-                                                                    Choose File
-                                                                    <input
-                                                                        type="file"
-                                                                        name="supporting_documents"
-                                                                        onChange={handleFileChange}
-                                                                        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                                                                        className="hidden"
-                                                                    />
-                                                                </label>
-                                                            </div>
+                                                        <div className="text-sm text-gray-700">
+                                                            <p className="font-medium">{form.supporting_documents.name}</p>
+                                                            <p className="text-gray-500">
+                                                                {(form.supporting_documents.size / 1024 / 1024).toFixed(2)} MB
+                                                            </p>
                                                         </div>
-                                                    )}
-                                                </div>
+                                                        <div className="flex gap-2 justify-center">
+                                                            <button
+                                                                type="button"
+                                                                onClick={removeFile}
+                                                                className="px-4 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200 text-sm font-medium"
+                                                            >
+                                                                Remove File
+                                                            </button>
+                                                            <label className="px-4 py-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors duration-200 text-sm font-medium cursor-pointer">
+                                                                Change File
+                                                                <input
+                                                                    type="file"
+                                                                    name="supporting_documents"
+                                                                    onChange={handleFileChange}
+                                                                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                                                    className="hidden"
+                                                                />
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-3">
+                                                        <div className="flex items-center justify-center gap-2 text-gray-400">
+                                                            <PaperClipIcon className="w-8 h-8" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-lg font-medium text-gray-700 mb-1">
+                                                                Drop files here or click to upload
+                                                            </p>
+                                                            <p className="text-sm text-gray-500 mb-3">
+                                                                PDF, DOC, DOCX, JPG, JPEG, PNG up to 10MB
+                                                            </p>
+                                                            <label className="inline-flex items-center px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg cursor-pointer transition-colors duration-200 text-sm font-medium">
+                                                                Choose File
+                                                                <input
+                                                                    type="file"
+                                                                    name="supporting_documents"
+                                                                    onChange={handleFileChange}
+                                                                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                                                    className="hidden"
+                                                                />
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-sm font-semibold mb-2 text-gray-700">Preferred Action/Resolution</label>
-                                                <input
-                                                    type="text"
-                                                    name="preferred_action"
-                                                    value={form.preferred_action}
+
+                                        {/* Preferred Action/Resolution */}
+                                        <div>
+                                            <label className="block text-sm font-semibold mb-2 text-gray-700">Preferred Action/Resolution</label>
+                                            <input
+                                                type="text"
+                                                name="preferred_action"
+                                                value={form.preferred_action}
+                                                onChange={handleChange}
+                                                className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all duration-200 ease-in-out shadow-sm hover:shadow-md"
+                                                placeholder="Enter preferred resolution method (e.g., Mediation, Settlement, Court Action)"
+                                            />
+                                        </div>
+
+                                        {/* Remarks */}
+                                        <div>
+                                            <label className="block text-sm font-semibold mb-2 text-gray-700">Remarks (optional)</label>
+                                            <div className="relative">
+                                                <textarea
+                                                    name="remarks"
+                                                    value={form.remarks}
                                                     onChange={handleChange}
-                                                    className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all duration-200 ease-in-out shadow-sm hover:shadow-md"
-                                                    placeholder="Enter preferred resolution method (e.g., Mediation, Settlement, Court Action)"
+                                                    className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all duration-200 ease-in-out shadow-sm hover:shadow-md resize-none"
+                                                    placeholder="Enter any additional remarks or notes about this complaint..."
+                                                    rows={3}
+                                                    maxLength={500}
                                                 />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-semibold mb-2 text-gray-700">Remarks (optional)</label>
-                                                <div className="relative">
-                                                    <textarea
-                                                        name="remarks"
-                                                        value={form.remarks}
-                                                        onChange={handleChange}
-                                                        className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all duration-200 ease-in-out shadow-sm hover:shadow-md resize-none"
-                                                        placeholder="Enter any additional remarks or notes about this complaint..."
-                                                        rows={3}
-                                                        maxLength={500}
-                                                    />
-                                                    <div className="absolute bottom-2 right-2 text-xs text-gray-400 bg-white px-1 rounded">
-                                                        {form.remarks.length}/500
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        {/* Complainant Contact Information */}
-                                        <div className="bg-green-50 rounded-xl p-4 border border-green-100">
-                                            <h4 className="text-lg font-semibold mb-4 text-green-700 flex items-center gap-2">
-                                                <PhoneIcon className="w-5 h-5 text-green-600" /> Complainant Contact Information
-                                            </h4>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                <div>
-                                                    <label className="block text-sm font-semibold mb-2 text-gray-700 flex items-center gap-2">
-                                                        <PhoneIcon className="w-4 h-4 text-green-600" /> Contact Number <span className="text-red-500">*</span>
-                                                    </label>
-                                                    <div className="relative">
-                                                        <input
-                                                            type="text"
-                                                            name="complainant_contact_number"
-                                                            value={form.complainant_contact_number}
-                                                            onChange={handleChange}
-                                                            className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all duration-200 ease-in-out shadow-sm hover:shadow-md"
-                                                            placeholder="e.g., +639123456789"
-                                                        />
-                                                        {form.complainant_contact_number && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setForm(f => ({ ...f, complainant_contact_number: '' }))}
-                                                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors duration-200"
-                                                            >
-                                                                <XMarkIcon className="w-4 h-4" />
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <label className="block text-sm font-semibold mb-2 text-gray-700 flex items-center gap-2">
-                                                        <EnvelopeIcon className="w-4 h-4 text-green-600" /> Email <span className="text-red-500">*</span>
-                                                    </label>
-                                                    <div className="relative">
-                                                        <input
-                                                            type="email"
-                                                            name="complainant_email"
-                                                            value={form.complainant_email}
-                                                            onChange={handleChange}
-                                                            className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all duration-200 ease-in-out shadow-sm hover:shadow-md"
-                                                            placeholder="e.g., john.doe@email.com"
-                                                        />
-                                                        {form.complainant_email && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setForm(f => ({ ...f, complainant_email: '' }))}
-                                                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors duration-200"
-                                                            >
-                                                                <XMarkIcon className="w-4 h-4" />
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        
-                                        {/* Respondent Contact Information */}
-                                        <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
-                                            <h4 className="text-lg font-semibold mb-4 text-blue-700 flex items-center gap-2">
-                                                <PhoneIcon className="w-5 h-5 text-blue-600" /> Respondent Contact Information
-                                            </h4>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                <div>
-                                                    <label className="block text-sm font-semibold mb-2 text-gray-700 flex items-center gap-2">
-                                                        <PhoneIcon className="w-4 h-4 text-blue-600" /> Contact Number <span className="text-red-500">*</span>
-                                                    </label>
-                                                    <div className="relative">
-                                                        <input
-                                                            type="text"
-                                                            name="respondent_contact_number"
-                                                            value={form.respondent_contact_number}
-                                                            onChange={handleChange}
-                                                            className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 ease-in-out shadow-sm hover:shadow-md"
-                                                            placeholder="e.g., +639123456789"
-                                                        />
-                                                        {form.respondent_contact_number && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setForm(f => ({ ...f, respondent_contact_number: '' }))}
-                                                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors duration-200"
-                                                            >
-                                                                <XMarkIcon className="w-4 h-4" />
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <label className="block text-sm font-semibold mb-2 text-gray-700 flex items-center gap-2">
-                                                        <EnvelopeIcon className="w-4 h-4 text-blue-600" /> Email <span className="text-red-500">*</span>
-                                                    </label>
-                                                    <div className="relative">
-                                                        <input
-                                                            type="email"
-                                                            name="respondent_email"
-                                                            value={form.respondent_email}
-                                                            onChange={handleChange}
-                                                            className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 ease-in-out shadow-sm hover:shadow-md"
-                                                            placeholder="e.g., john.doe@email.com"
-                                                        />
-                                                        {form.respondent_email && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setForm(f => ({ ...f, respondent_email: '' }))}
-                                                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors duration-200"
-                                                            >
-                                                                <XMarkIcon className="w-4 h-4" />
-                                                            </button>
-                                                        )}
-                                                    </div>
+                                                <div className="absolute bottom-2 right-2 text-xs text-gray-400 bg-white px-1 rounded">
+                                                    {form.remarks.length}/500
                                                 </div>
                                             </div>
                                         </div>

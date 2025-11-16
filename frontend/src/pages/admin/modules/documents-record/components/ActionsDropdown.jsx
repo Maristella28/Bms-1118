@@ -10,6 +10,7 @@ import {
   CurrencyDollarIcon,
   DocumentTextIcon,
   ArrowDownTrayIcon,
+  GiftIcon,
 } from '@heroicons/react/24/outline';
 
 const ActionsDropdown = ({ 
@@ -19,13 +20,15 @@ const ActionsDropdown = ({
   onEditRecord,
   onApprove,
   onDeny,
-  onConfirmPayment, 
+  onConfirmPayment,
+  onMarkAsFree,
   onGeneratePdf, 
   onViewPdf, 
   onDownloadPdf, 
   onGenerateReceipt,
   onDownloadReceipt,
-  confirmingPayment, 
+  confirmingPayment,
+  markingAsFree,
   generatingPdf 
 }) => {
   const buttonRef = useRef(null);
@@ -93,6 +96,18 @@ const ActionsDropdown = ({
       },
     ];
 
+    // Debug logging for PDF actions (remove in production)
+    if (activeTab === 'records') {
+      console.log('ActionsDropdown - Record in Document Records tab:', {
+        id: record.id,
+        status: record.status,
+        paymentStatus: record.paymentStatus,
+        pdfPath: record.pdfPath,
+        pdf_path: record.pdf_path,
+        hasPdfPath: record.pdfPath || record.pdf_path
+      });
+    }
+
     // Show Approve and Deny actions ONLY for pending requests (not processing!)
     if (activeTab === 'requests' && record.status === 'Pending') {
       items.push({
@@ -121,56 +136,84 @@ const ActionsDropdown = ({
 
     // Show payment confirmation only for processing unpaid requests
     // Payment can only be confirmed after PDF is generated (status becomes Processing)
-    if (activeTab === 'requests' && record.status === 'Processing' && record.paymentAmount && record.paymentAmount > 0 && record.paymentStatus === 'unpaid') {
-      items.push({
-        label: `Confirm Payment (₱${parseFloat(record.paymentAmount).toFixed(2)})`,
-        icon: CurrencyDollarIcon,
-        onClick: () => onConfirmPayment?.(record),
-        className: 'text-gray-700 hover:bg-green-50 hover:text-green-700',
-        disabled: confirmingPayment === record.id,
-      });
+    if (activeTab === 'requests' && record.status === 'Processing' && record.paymentStatus === 'unpaid') {
+      if (record.paymentAmount && record.paymentAmount > 0) {
+        // Paid documents - show Confirm Payment
+        items.push({
+          label: `Confirm Payment (₱${parseFloat(record.paymentAmount).toFixed(2)})`,
+          icon: CurrencyDollarIcon,
+          onClick: () => onConfirmPayment?.(record),
+          className: 'text-gray-700 hover:bg-green-50 hover:text-green-700',
+          disabled: confirmingPayment === record.id,
+        });
+      } else if (!record.paymentAmount || record.paymentAmount === 0) {
+        // Free documents - show Mark as Free
+        items.push({
+          label: 'Mark as Free',
+          icon: GiftIcon,
+          onClick: () => onMarkAsFree?.(record),
+          className: 'text-gray-700 hover:bg-blue-50 hover:text-blue-700',
+          disabled: markingAsFree === record.id,
+        });
+      }
     }
 
-    // Show PDF actions ONLY for approved or processing records (not pending!)
+    // Show PDF actions for approved or processing records
+    // PDF actions should be available in BOTH Requests AND Records tabs
     // Check status case-insensitively to handle any variations
     const recordStatus = (record.status || '').toLowerCase();
+    const hasPdfPath = !!(record.pdfPath || record.pdf_path); // Check both camelCase and snake_case
+    
+    // Debug logging for PDF path detection
+    if (activeTab === 'records' && (recordStatus === 'approved' || recordStatus === 'processing')) {
+      console.log('PDF Actions Check - Document Records tab:', {
+        recordId: record.id,
+        status: record.status,
+        recordStatus,
+        pdfPath: record.pdfPath,
+        pdf_path: record.pdf_path,
+        hasPdfPath,
+        willShowPDFActions: recordStatus === 'approved' || recordStatus === 'processing'
+      });
+    }
+    
+    // Show PDF actions for approved or processing records in BOTH tabs
     if (recordStatus === 'approved' || recordStatus === 'processing') {
-      if (!record.pdfPath) {
-        // Only show Generate PDF for Approved status (backend requirement)
-        // Once PDF is generated, status becomes Processing
-        if (recordStatus === 'approved') {
-          items.push({
-            label: 'Generate PDF',
-            icon: DocumentTextIcon,
-            onClick: () => onGeneratePdf?.(record),
-            className: 'text-gray-700 hover:bg-green-50 hover:text-green-700',
-            disabled: generatingPdf === record.id,
-          });
-        } else if (recordStatus === 'processing' && !record.pdfPath) {
-          // If status is Processing but no PDF exists, show error message
-          items.push({
-            label: 'PDF Not Found',
-            icon: DocumentTextIcon,
-            onClick: () => {
-              // This shouldn't happen, but handle it gracefully
-              console.warn('PDF path missing for Processing status record:', record.id);
-            },
-            className: 'text-gray-400 cursor-not-allowed',
-            disabled: true,
-          });
-        }
+      if (!hasPdfPath) {
+        // Show Generate PDF if PDF doesn't exist
+        // This should work in both Requests and Records tabs
+        items.push({
+          label: 'Generate PDF',
+          icon: DocumentTextIcon,
+          onClick: () => onGeneratePdf?.(record),
+          className: 'text-gray-700 hover:bg-green-50 hover:text-green-700',
+          disabled: generatingPdf === record.id,
+        });
       } else {
-        // Show View/Download PDF for both Approved and Processing (when PDF exists)
+        // Show View/Download PDF when PDF exists
+        // These actions should be available in BOTH Requests AND Records tabs
         items.push({
           label: 'View PDF',
           icon: EyeIcon,
-          onClick: () => onViewPdf?.(record),
+          onClick: () => {
+            console.log('View PDF clicked - Document Records tab:', {
+              recordId: record.id,
+              pdfPath: record.pdfPath || record.pdf_path
+            });
+            onViewPdf?.(record);
+          },
           className: 'text-gray-700 hover:bg-blue-50 hover:text-blue-700',
         });
         items.push({
           label: 'Download PDF',
           icon: ArrowDownTrayIcon,
-          onClick: () => onDownloadPdf?.(record),
+          onClick: () => {
+            console.log('Download PDF clicked - Document Records tab:', {
+              recordId: record.id,
+              pdfPath: record.pdfPath || record.pdf_path
+            });
+            onDownloadPdf?.(record);
+          },
           className: 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-700',
         });
       }

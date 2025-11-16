@@ -1,5 +1,24 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { UserIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { 
+  UserIcon, 
+  SparklesIcon,
+  HeartIcon,
+  UserMinusIcon,
+  XCircleIcon,
+  CheckCircleIcon,
+  DocumentTextIcon,
+  QuestionMarkCircleIcon,
+  XMarkIcon,
+  ArrowPathIcon
+} from '@heroicons/react/24/outline';
+import {
+  UserIcon as UserIconSolid,
+  HeartIcon as HeartIconSolid,
+  XCircleIcon as XCircleIconSolid,
+  CheckCircleIcon as CheckCircleIconSolid,
+  DocumentTextIcon as DocumentTextIconSolid,
+  ExclamationTriangleIcon
+} from '@heroicons/react/24/solid';
 import axiosInstance from '../../../../utils/axiosConfig';
 import { toast } from 'react-toastify';
 
@@ -33,9 +52,9 @@ const AvatarImg = ({ avatarPath }) => {
 };
 
 // Badge component
-const Badge = ({ text, color, icon }) => (
-  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${color}`}>
-    {icon && <span className="text-xs">{icon}</span>}
+const Badge = ({ text, color, icon: IconComponent }) => (
+  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${color}`}>
+    {IconComponent && <IconComponent className="w-3.5 h-3.5" />}
     {text}
   </span>
 );
@@ -72,31 +91,31 @@ const getVoterStatusColor = (status) => {
 
 const getCivilStatusIcon = (status) => {
   const icons = {
-    'Single': '👤',
-    'Married': '💑',
-    'Widowed': '🕊️',
-    'Divorced': '💔',
-    'Separated': '⚡'
+    'Single': UserIconSolid,
+    'Married': HeartIconSolid,
+    'Widowed': UserMinusIcon,
+    'Divorced': XCircleIconSolid,
+    'Separated': ExclamationTriangleIcon
   };
-  return icons[status] || '👤';
+  return icons[status] || UserIconSolid;
 };
 
 const getGenderIcon = (gender) => {
   const icons = {
-    'Male': '👨',
-    'Female': '👩'
+    'Male': UserIconSolid,
+    'Female': UserIconSolid
   };
-  return icons[gender] || '👤';
+  return icons[gender] || UserIconSolid;
 };
 
 const getVoterStatusIcon = (status) => {
   const icons = {
-    'Yes': '✅',
-    'No': '❌',
-    'Registered': '📝',
-    'Not Registered': '📋'
+    'Yes': CheckCircleIconSolid,
+    'No': XCircleIconSolid,
+    'Registered': DocumentTextIconSolid,
+    'Not Registered': DocumentTextIcon
   };
-  return icons[status] || '❓';
+  return icons[status] || QuestionMarkCircleIcon;
 };
 
 const formatResidentName = (resident) => {
@@ -110,11 +129,14 @@ const DisabledResidentsTable = ({ showRecentlyDeleted, onRefresh }) => {
   const [recentlyDeletedLoading, setRecentlyDeletedLoading] = useState(false);
   const [deletedCurrentPage, setDeletedCurrentPage] = useState(1);
   const [deletedItemsPerPage, setDeletedItemsPerPage] = useState(10);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [residentToRestore, setResidentToRestore] = useState(null);
+  const [restoreLoading, setRestoreLoading] = useState(false);
 
   const fetchRecentlyDeletedResidents = async () => {
     setRecentlyDeletedLoading(true);
     try {
-      const response = await axiosInstance.get('/api/admin/residents-deleted');
+      const response = await axiosInstance.get('/admin/residents-deleted');
       setRecentlyDeletedResidents(response.data.residents || []);
     } catch (error) {
       console.error('Error fetching recently deleted residents:', error);
@@ -124,15 +146,31 @@ const DisabledResidentsTable = ({ showRecentlyDeleted, onRefresh }) => {
     }
   };
 
-  const handleRestore = async (residentId) => {
+  const handleRestore = (resident) => {
+    setResidentToRestore(resident);
+    setShowConfirmModal(true);
+  };
+
+  const closeConfirmModal = () => {
+    setShowConfirmModal(false);
+    setResidentToRestore(null);
+  };
+
+  const confirmRestore = async () => {
+    if (!residentToRestore) return;
+    
+    setRestoreLoading(true);
     try {
-      await axiosInstance.post(`/api/residents/${residentId}/restore`);
+      await axiosInstance.post(`/admin/residents/${residentToRestore.id}/restore`);
       toast.success('Resident restored successfully');
       fetchRecentlyDeletedResidents();
       if (onRefresh) onRefresh();
+      closeConfirmModal();
     } catch (error) {
       console.error('Error restoring resident:', error);
       toast.error('Failed to restore resident');
+    } finally {
+      setRestoreLoading(false);
     }
   };
 
@@ -237,18 +275,30 @@ const DisabledResidentsTable = ({ showRecentlyDeleted, onRefresh }) => {
                   </td>
                   <td className="px-4 py-4 text-gray-700">{r.nationality || "N/A"}</td>
                   <td className="px-4 py-4">
-                    <Badge text={r.civil_status} color={getCivilStatusColor(r.civil_status)} icon={getCivilStatusIcon(r.civil_status)} />
+                    <Badge 
+                      text={r.civil_status} 
+                      color={getCivilStatusColor(r.civil_status)} 
+                      icon={getCivilStatusIcon(r.civil_status)} 
+                    />
                   </td>
                   <td className="px-4 py-4">
-                    <Badge text={r.sex} color={getGenderColor(r.sex)} icon={getGenderIcon(r.sex)} />
+                    <Badge 
+                      text={r.sex} 
+                      color={getGenderColor(r.sex)} 
+                      icon={getGenderIcon(r.sex)} 
+                    />
                   </td>
                   <td className="px-4 py-4">
-                    <Badge text={r.voter_status} color={getVoterStatusColor(r.voter_status)} icon={getVoterStatusIcon(r.voter_status)} />
+                    <Badge 
+                      text={r.voter_status} 
+                      color={getVoterStatusColor(r.voter_status)} 
+                      icon={getVoterStatusIcon(r.voter_status)} 
+                    />
                   </td>
                   <td className="px-4 py-4 text-gray-700">{r.voters_id_number || "N/A"}</td>
                   <td className="px-4 py-4">
                     <button
-                      onClick={() => handleRestore(r.id)}
+                      onClick={() => handleRestore(r)}
                       className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-md flex items-center gap-2 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
                     >
                       <SparklesIcon className="w-4 h-4" />
@@ -315,6 +365,101 @@ const DisabledResidentsTable = ({ showRecentlyDeleted, onRefresh }) => {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in px-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 px-6 py-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                    <ArrowPathIcon className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">Confirm Restore</h3>
+                    <p className="text-green-100 text-sm mt-1">Restore resident record</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeConfirmModal}
+                  disabled={restoreLoading}
+                  className="text-white/80 hover:text-white hover:bg-white/20 rounded-full p-2 transition-all duration-200 disabled:opacity-50"
+                >
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6">
+              {residentToRestore && (
+                <div className="space-y-4">
+                  <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                    <p className="text-sm text-gray-600 mb-2">Resident Information:</p>
+                    <div className="space-y-1">
+                      <p className="text-base font-semibold text-gray-900">
+                        {formatResidentName(residentToRestore) || 'Unknown Name'}
+                      </p>
+                      {residentToRestore.residents_id && (
+                        <p className="text-sm text-gray-600">
+                          ID: <span className="font-mono">{residentToRestore.residents_id}</span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4">
+                    <div className="flex items-start gap-3">
+                      <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-semibold text-amber-900 mb-1">
+                          Are you sure you want to restore this resident?
+                        </p>
+                        <p className="text-xs text-amber-700">
+                          This will restore the resident record and make it active again. The resident will be able to access their account.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Modal Actions */}
+              <div className="flex gap-3 mt-6 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={closeConfirmModal}
+                  disabled={restoreLoading}
+                  className="flex-1 px-4 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmRestore}
+                  disabled={restoreLoading}
+                  className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-green-600 to-emerald-600 rounded-xl hover:from-green-700 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg"
+                >
+                  {restoreLoading ? (
+                    <>
+                      <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                      Restoring...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircleIcon className="w-4 h-4" />
+                      Restore Resident
+                    </>
+                  )}
                 </button>
               </div>
             </div>

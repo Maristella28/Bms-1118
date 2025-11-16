@@ -723,124 +723,228 @@ const DisasterEmergency = () => {
 
         {/* Add Emergency Hotline Modal */}
         {showAddHotlineModal && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in">
-            <form
-              onSubmit={handleHotlineSubmit}
-              className="bg-white rounded-3xl shadow-2xl p-10 w-full max-w-lg space-y-4"
-            >
-              <h2 className="text-2xl font-bold mb-4 text-emerald-700 flex items-center gap-2">
-                <PhoneIcon className="w-6 h-6" /> Add Emergency Hotline
-              </h2>
-              {hotlineError && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                  {hotlineError}
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in px-4">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden transform transition-all">
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-teal-600 via-emerald-600 to-green-600 px-8 py-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                      <PhoneIcon className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-white">Add Emergency Hotline</h2>
+                      <p className="text-green-100 text-sm mt-1">Create a new emergency hotline record</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddHotlineModal(false);
+                      setHotlineForm({
+                        type: '',
+                        hotline: '',
+                        description: '',
+                        status: 'Active',
+                        contact_person: '',
+                        email: '',
+                        procedure: '',
+                      });
+                      setHotlineError('');
+                    }}
+                    className="text-white/80 hover:text-white hover:bg-white/20 rounded-full p-2 transition-all duration-200"
+                  >
+                    <XMarkIcon className="w-6 h-6" />
+                  </button>
                 </div>
-              )}
-              <label className="block text-sm font-semibold text-gray-700">Type <span className="text-red-500">*</span></label>
-              <select
-                name="type"
-                value={hotlineForm.type}
-                onChange={handleHotlineChange}
-                required
-                className="w-full border-2 border-gray-200 focus:ring-4 focus:ring-green-100 focus:border-green-500 rounded-xl px-4 py-3 text-base"
-              >
-                <option value="">Select Type</option>
-                <option value="Fire">Fire</option>
-                <option value="Flood">Flood</option>
-                <option value="Medical Emergency">Medical Emergency</option>
-                <option value="Police">Police</option>
-                <option value="Ambulance">Ambulance</option>
-                <option value="Rescue">Rescue</option>
-                <option value="Earthquake">Earthquake</option>
-                <option value="Typhoon">Typhoon</option>
-                <option value="Disaster Response">Disaster Response</option>
-                <option value="Emergency Management">Emergency Management</option>
-                <option value="Other">Other</option>
-              </select>
-              <label className="block text-sm font-semibold text-gray-700">Hotline Number <span className="text-red-500">*</span></label>
-              <input
-                name="hotline"
-                value={hotlineForm.hotline}
-                onChange={handleHotlineChange}
-                required
-                placeholder="Hotline Number"
-                className="w-full border-2 border-gray-200 focus:ring-4 focus:ring-green-100 focus:border-green-500 rounded-xl px-4 py-3 text-base"
-              />
-              <label className="block text-sm font-semibold text-gray-700">Description <span className="text-red-500">*</span></label>
-              <input
-                name="description"
-                value={hotlineForm.description}
-                onChange={handleHotlineChange}
-                required
-                placeholder="Description"
-                className="w-full border-2 border-gray-200 focus:ring-4 focus:ring-green-100 focus:border-green-500 rounded-xl px-4 py-3 text-base"
-              />
-              <label className="block text-sm font-semibold text-gray-700">Status <span className="text-red-500">*</span></label>
-              <select
-                name="status"
-                value={hotlineForm.status}
-                onChange={handleHotlineChange}
-                required
-                className="w-full border-2 border-gray-200 focus:ring-4 focus:ring-green-100 focus:border-green-500 rounded-xl px-4 py-3 text-base"
-              >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-              <label className="block text-sm font-semibold text-gray-700">Contact Person</label>
-              <input
-                name="contact_person"
-                value={hotlineForm.contact_person}
-                onChange={handleHotlineChange}
-                placeholder="Contact Person"
-                className="w-full border-2 border-gray-200 focus:ring-4 focus:ring-green-100 focus:border-green-500 rounded-xl px-4 py-3 text-base"
-              />
-              <label className="block text-sm font-semibold text-gray-700">Email</label>
-              <input
-                name="email"
-                type="email"
-                value={hotlineForm.email}
-                onChange={handleHotlineChange}
-                placeholder="Email"
-                className="w-full border-2 border-gray-200 focus:ring-4 focus:ring-green-100 focus:border-green-500 rounded-xl px-4 py-3 text-base"
-              />
-              <label className="block text-sm font-semibold text-gray-700">Procedure</label>
-              <textarea
-                name="procedure"
-                value={hotlineForm.procedure}
-                onChange={handleHotlineChange}
-                placeholder="Step-by-step procedure (one step per line)"
-                className="w-full border-2 border-gray-200 focus:ring-4 focus:ring-green-100 focus:border-green-500 rounded-xl px-4 py-3 text-base"
-                rows={4}
-              />
-              <div className="flex gap-4 mt-6">
-                <button
-                  type="submit"
-                  disabled={hotlineLoading}
-                  className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300 disabled:opacity-50"
-                >
-                  {hotlineLoading ? 'Saving...' : 'Save'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAddHotlineModal(false);
-                    setHotlineForm({
-                      type: '',
-                      hotline: '',
-                      description: '',
-                      status: 'Active',
-                      contact_person: '',
-                      email: '',
-                      procedure: '',
-                    });
-                    setHotlineError('');
-                  }}
-                  className="bg-gray-300 px-6 py-3 rounded-xl font-bold hover:bg-gray-400 transition-all duration-300"
-                >
-                  Cancel
-                </button>
               </div>
-            </form>
+
+              {/* Modal Content */}
+              <form onSubmit={handleHotlineSubmit} className="p-8 space-y-6 max-h-[calc(90vh-140px)] overflow-y-auto">
+                {hotlineError && (
+                  <div className="bg-red-50 border-2 border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center gap-2">
+                    <ExclamationTriangleIcon className="w-5 h-5" />
+                    {hotlineError}
+                  </div>
+                )}
+
+                {/* Type */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <ExclamationTriangleIcon className="w-4 h-4 text-emerald-600" />
+                    Type <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    name="type"
+                    value={hotlineForm.type}
+                    onChange={handleHotlineChange}
+                    required
+                    className="w-full border-2 border-gray-200 focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500 rounded-xl px-4 py-3 text-base transition-all duration-200 bg-white"
+                  >
+                    <option value="">Select Type</option>
+                    <option value="Fire">Fire</option>
+                    <option value="Flood">Flood</option>
+                    <option value="Medical Emergency">Medical Emergency</option>
+                    <option value="Police">Police</option>
+                    <option value="Ambulance">Ambulance</option>
+                    <option value="Rescue">Rescue</option>
+                    <option value="Earthquake">Earthquake</option>
+                    <option value="Typhoon">Typhoon</option>
+                    <option value="Disaster Response">Disaster Response</option>
+                    <option value="Emergency Management">Emergency Management</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                {/* Hotline Number */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <PhoneIcon className="w-4 h-4 text-emerald-600" />
+                    Hotline Number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    name="hotline"
+                    value={hotlineForm.hotline}
+                    onChange={handleHotlineChange}
+                    required
+                    placeholder="Enter hotline number (e.g., 0912-345-6789)"
+                    className="w-full border-2 border-gray-200 focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500 rounded-xl px-4 py-3 text-base transition-all duration-200"
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <DocumentTextIcon className="w-4 h-4 text-emerald-600" />
+                    Description <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    name="description"
+                    value={hotlineForm.description}
+                    onChange={handleHotlineChange}
+                    required
+                    placeholder="Enter description of the hotline service"
+                    className="w-full border-2 border-gray-200 focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500 rounded-xl px-4 py-3 text-base transition-all duration-200"
+                  />
+                </div>
+
+                {/* Status */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <CheckCircleIcon className="w-4 h-4 text-emerald-600" />
+                    Status <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    name="status"
+                    value={hotlineForm.status}
+                    onChange={handleHotlineChange}
+                    required
+                    className="w-full border-2 border-gray-200 focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500 rounded-xl px-4 py-3 text-base transition-all duration-200 bg-white"
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+                </div>
+
+                {/* Optional Fields Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Contact Person */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                      <UserIcon className="w-4 h-4 text-gray-500" />
+                      Contact Person <span className="text-gray-400 text-xs">(optional)</span>
+                    </label>
+                    <input
+                      name="contact_person"
+                      value={hotlineForm.contact_person}
+                      onChange={handleHotlineChange}
+                      placeholder="Enter contact person name"
+                      className="w-full border-2 border-gray-200 focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500 rounded-xl px-4 py-3 text-base transition-all duration-200"
+                    />
+                  </div>
+
+                  {/* Email */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                      <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      Email <span className="text-gray-400 text-xs">(optional)</span>
+                    </label>
+                    <input
+                      name="email"
+                      type="email"
+                      value={hotlineForm.email}
+                      onChange={handleHotlineChange}
+                      placeholder="Enter email address"
+                      className="w-full border-2 border-gray-200 focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500 rounded-xl px-4 py-3 text-base transition-all duration-200"
+                    />
+                  </div>
+                </div>
+
+                {/* Procedure */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <DocumentTextIcon className="w-4 h-4 text-gray-500" />
+                    Procedure <span className="text-gray-400 text-xs">(optional)</span>
+                  </label>
+                  <textarea
+                    name="procedure"
+                    value={hotlineForm.procedure}
+                    onChange={handleHotlineChange}
+                    placeholder="Enter step-by-step procedure (one step per line)"
+                    className="w-full border-2 border-gray-200 focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500 rounded-xl px-4 py-3 text-base transition-all duration-200 resize-none"
+                    rows={4}
+                  />
+                  <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Each line will be treated as a separate step in the procedure
+                  </p>
+                </div>
+
+                {/* Form Actions */}
+                <div className="flex gap-4 pt-4 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddHotlineModal(false);
+                      setHotlineForm({
+                        type: '',
+                        hotline: '',
+                        description: '',
+                        status: 'Active',
+                        contact_person: '',
+                        email: '',
+                        procedure: '',
+                      });
+                      setHotlineError('');
+                    }}
+                    className="flex-1 px-6 py-3 text-base font-semibold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-all duration-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={hotlineLoading}
+                    className="flex-1 px-6 py-3 text-base font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 rounded-xl hover:from-emerald-700 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg"
+                  >
+                    {hotlineLoading ? (
+                      <>
+                        <ArrowPathIcon className="w-5 h-5 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircleIcon className="w-5 h-5" />
+                        Save Hotline
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
         {/* Emergency Hotlines Table */}
@@ -919,30 +1023,196 @@ const DisasterEmergency = () => {
         )}
         {/* Edit Modal */}
         {showEditModal && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in">
-            <form
-              onSubmit={handleEditSubmit}
-              className="bg-white rounded-3xl shadow-2xl p-10 w-full max-w-lg space-y-4"
-            >
-              <h2 className="text-2xl font-bold mb-2 text-emerald-700 flex items-center gap-2">
-                <DocumentTextIcon className="w-6 h-6" /> Edit Disaster/Emergency Record
-              </h2>
-              <input name="type" value={editForm.type} onChange={handleEditChange} required placeholder="Type (e.g. Fire, Flood)" className="w-full border rounded px-4 py-2" />
-              <input name="date" value={editForm.date} onChange={handleEditChange} required type="date" className="w-full border rounded px-4 py-2" />
-              <input name="location" value={editForm.location} onChange={handleEditChange} required placeholder="Location" className="w-full border rounded px-4 py-2" />
-              <textarea name="description" value={editForm.description} onChange={handleEditChange} required placeholder="Description" className="w-full border rounded px-4 py-2" />
-              <textarea name="actions_taken" value={editForm.actions_taken} onChange={handleEditChange} placeholder="Actions Taken" className="w-full border rounded px-4 py-2" />
-              <input name="casualties" value={editForm.casualties} onChange={handleEditChange} placeholder="Casualties (optional)" className="w-full border rounded px-4 py-2" />
-              <input name="reported_by" value={editForm.reported_by} onChange={handleEditChange} placeholder="Reported By (optional)" className="w-full border rounded px-4 py-2" />
-              <div className="flex gap-4 mt-4">
-                <button type="submit" disabled={loading} className="bg-gradient-to-r from-emerald-600 to-green-600 text-white px-6 py-2 rounded-xl font-bold hover:from-emerald-700 hover:to-green-700">
-                  {loading ? 'Saving...' : 'Save'}
-                </button>
-                <button type="button" onClick={() => setShowEditModal(false)} className="bg-gray-300 px-6 py-2 rounded-xl font-bold hover:bg-gray-400">
-                  Cancel
-                </button>
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in px-4">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden transform transition-all">
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 px-8 py-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                      <PencilIcon className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-white">Edit Disaster/Emergency Record</h2>
+                      <p className="text-green-100 text-sm mt-1">Update the record information</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowEditModal(false)}
+                    className="text-white/80 hover:text-white hover:bg-white/20 rounded-full p-2 transition-all duration-200"
+                  >
+                    <XMarkIcon className="w-6 h-6" />
+                  </button>
+                </div>
               </div>
-            </form>
+
+              {/* Modal Content */}
+              <form onSubmit={handleEditSubmit} className="p-8 space-y-6 max-h-[calc(90vh-140px)] overflow-y-auto">
+                {error && (
+                  <div className="bg-red-50 border-2 border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center gap-2">
+                    <ExclamationTriangleIcon className="w-5 h-5" />
+                    {error}
+                  </div>
+                )}
+
+                {/* Disaster Type */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <ExclamationTriangleIcon className="w-4 h-4 text-emerald-600" />
+                    Disaster Type <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    name="type"
+                    value={editForm.type}
+                    onChange={handleEditChange}
+                    required
+                    className="w-full border-2 border-gray-200 focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500 rounded-xl px-4 py-3 text-base transition-all duration-200 bg-white"
+                  >
+                    <option value="">Select Type</option>
+                    <option value="Fire">Fire</option>
+                    <option value="Flood">Flood</option>
+                    <option value="Earthquake">Earthquake</option>
+                    <option value="Typhoon">Typhoon</option>
+                    <option value="Medical Emergency">Medical Emergency</option>
+                    <option value="Accident">Accident</option>
+                    <option value="Natural Disaster">Natural Disaster</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                {/* Date */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <CalendarIcon className="w-4 h-4 text-emerald-600" />
+                    Date <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    name="date"
+                    value={editForm.date}
+                    onChange={handleEditChange}
+                    required
+                    type="date"
+                    className="w-full border-2 border-gray-200 focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500 rounded-xl px-4 py-3 text-base transition-all duration-200 bg-white"
+                  />
+                </div>
+
+                {/* Location */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Location <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    name="location"
+                    value={editForm.location}
+                    onChange={handleEditChange}
+                    required
+                    placeholder="Enter location"
+                    className="w-full border-2 border-gray-200 focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500 rounded-xl px-4 py-3 text-base transition-all duration-200"
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <DocumentTextIcon className="w-4 h-4 text-emerald-600" />
+                    Description <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    name="description"
+                    value={editForm.description}
+                    onChange={handleEditChange}
+                    required
+                    placeholder="Enter detailed description of the incident"
+                    rows={4}
+                    className="w-full border-2 border-gray-200 focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500 rounded-xl px-4 py-3 text-base transition-all duration-200 resize-none"
+                  />
+                </div>
+
+                {/* Actions Taken */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <CheckCircleIcon className="w-4 h-4 text-emerald-600" />
+                    Actions Taken
+                  </label>
+                  <textarea
+                    name="actions_taken"
+                    value={editForm.actions_taken}
+                    onChange={handleEditChange}
+                    placeholder="Describe the actions taken in response to this incident"
+                    rows={4}
+                    className="w-full border-2 border-gray-200 focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500 rounded-xl px-4 py-3 text-base transition-all duration-200 resize-none"
+                  />
+                </div>
+
+                {/* Optional Fields Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Casualties */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                      <UserIcon className="w-4 h-4 text-gray-500" />
+                      Casualties <span className="text-gray-400 text-xs">(optional)</span>
+                    </label>
+                    <input
+                      name="casualties"
+                      value={editForm.casualties}
+                      onChange={handleEditChange}
+                      placeholder="Enter number of casualties"
+                      type="number"
+                      min="0"
+                      className="w-full border-2 border-gray-200 focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500 rounded-xl px-4 py-3 text-base transition-all duration-200"
+                    />
+                  </div>
+
+                  {/* Reported By */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                      <UserIcon className="w-4 h-4 text-gray-500" />
+                      Reported By <span className="text-gray-400 text-xs">(optional)</span>
+                    </label>
+                    <input
+                      name="reported_by"
+                      value={editForm.reported_by}
+                      onChange={handleEditChange}
+                      placeholder="Enter reporter's name"
+                      className="w-full border-2 border-gray-200 focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500 rounded-xl px-4 py-3 text-base transition-all duration-200"
+                    />
+                  </div>
+                </div>
+
+                {/* Form Actions */}
+                <div className="flex gap-4 pt-4 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => setShowEditModal(false)}
+                    className="flex-1 px-6 py-3 text-base font-semibold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-all duration-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex-1 px-6 py-3 text-base font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 rounded-xl hover:from-emerald-700 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg"
+                  >
+                    {loading ? (
+                      <>
+                        <ArrowPathIcon className="w-5 h-5 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircleIcon className="w-5 h-5" />
+                        Save Changes
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
         </div>
