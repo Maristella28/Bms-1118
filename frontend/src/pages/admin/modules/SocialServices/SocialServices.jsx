@@ -3527,13 +3527,6 @@ const SocialServices = () => {
           programs={programs}
           showGlossary={showGlossary}
           setShowGlossary={setShowGlossary}
-          showProgramModal={showProgramModal}
-          setShowProgramModal={setShowProgramModal}
-          programFormData={programFormData}
-          handleProgramInputChange={handleProgramInputChange}
-          handleProgramSubmit={handleProgramSubmit}
-          handleEditProgramClick={handleEditProgramClick}
-          editingProgram={editingProgram}
         />
 
         {/* Enhanced Add/Edit Program Modal */}
