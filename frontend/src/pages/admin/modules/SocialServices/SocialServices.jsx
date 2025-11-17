@@ -3614,7 +3614,6 @@ const SocialServices = () => {
                         <option value="">Select Status</option>
                         <option value="draft">Draft</option>
                         <option value="ongoing">Ongoing</option>
-                        <option value="complete">Complete</option>
                       </select>
                     </div>
                   </div>
