@@ -9,7 +9,9 @@ const SocialCards = ({
   formatDate, 
   formatDateRange,
   handleDeleteProgram, 
-  handleEditProgramClick 
+  handleEditProgramClick,
+  getEffectiveProgramStatus,
+  areAllBeneficiariesPaid
 }) => {
   const navigate = useNavigate();
   
@@ -19,7 +21,13 @@ const SocialCards = ({
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8 w-full max-w-full overflow-hidden">
-      {programs.map((program, index) => (
+      {programs.map((program, index) => {
+        // Get effective status (considers if all beneficiaries are paid)
+        const effectiveStatus = getEffectiveProgramStatus ? getEffectiveProgramStatus(program) : program.status;
+        const isComplete = effectiveStatus === 'complete' && areAllBeneficiariesPaid && areAllBeneficiariesPaid(program.id);
+        const displayStatus = isComplete ? 'Complete' : (effectiveStatus ? effectiveStatus.charAt(0).toUpperCase() + effectiveStatus.slice(1) : 'Draft');
+        
+        return (
         <div
           key={program.id}
           className="group relative bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/20 p-6 cursor-pointer transition-all duration-500 hover:shadow-2xl hover:scale-[1.02] hover:bg-white/90 animate-fade-in-up overflow-hidden"
@@ -41,10 +49,12 @@ const SocialCards = ({
                 </div>
                 {/* Status Indicator Ring */}
                 <div className={`absolute -top-1 -right-1 w-5 h-5 rounded-full border-2 border-white shadow-sm ${
-                  program.status === 'active' 
+                  effectiveStatus === 'active' 
                     ? 'bg-green-500 animate-pulse' 
-                    : program.status === 'ongoing'
+                    : effectiveStatus === 'ongoing'
                     ? 'bg-blue-500'
+                    : effectiveStatus === 'complete' || isComplete
+                    ? 'bg-emerald-500'
                     : 'bg-gray-400'
                 }`}></div>
               </div>
@@ -57,20 +67,24 @@ const SocialCards = ({
                 
                 {/* Enhanced Status Tag */}
                 <div className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm transition-all duration-300 ${
-                  program.status === 'active' 
+                  effectiveStatus === 'active' 
                     ? 'bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border border-green-200 shadow-green-100/50 group-hover:shadow-green-200/50' 
-                    : program.status === 'ongoing'
+                    : effectiveStatus === 'ongoing'
                     ? 'bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border border-blue-200 shadow-blue-100/50'
+                    : effectiveStatus === 'complete' || isComplete
+                    ? 'bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-800 border border-emerald-200 shadow-emerald-100/50'
                     : 'bg-gradient-to-r from-gray-100 to-slate-100 text-gray-800 border border-gray-200 shadow-gray-100/50'
                 }`}>
                   <div className={`w-2 h-2 rounded-full mr-2 ${
-                    program.status === 'active' 
+                    effectiveStatus === 'active' 
                       ? 'bg-green-500 animate-pulse' 
-                      : program.status === 'ongoing'
+                      : effectiveStatus === 'ongoing'
                       ? 'bg-blue-500'
+                      : effectiveStatus === 'complete' || isComplete
+                      ? 'bg-emerald-500'
                       : 'bg-gray-400'
                   }`}></div>
-                  {program.status.charAt(0).toUpperCase() + program.status.slice(1)}
+                  {displayStatus}
                 </div>
               </div>
             </div>
@@ -157,7 +171,8 @@ const SocialCards = ({
             </div>
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 };

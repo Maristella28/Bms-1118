@@ -1138,10 +1138,63 @@ const ProgramDetails = () => {
         }));
       }
 
-      setToast({
-        type: 'success',
-        message: response.data.message || 'Beneficiary marked as paid successfully'
-      });
+      // Refresh beneficiaries to get updated status
+      const updatedBeneficiaries = await fetchBeneficiaries(id);
+      setBeneficiaries(updatedBeneficiaries);
+
+      // Check if all beneficiaries are now paid
+      const allPaid = updatedBeneficiaries.length > 0 && updatedBeneficiaries.every(b => 
+        b.is_paid || b.status === 'Disbursed' || b.status === 'Completed'
+      );
+
+      // If all beneficiaries are paid and program status is not already 'complete', update it
+      // Check status case-insensitively
+      const currentStatus = (program.status || '').toLowerCase();
+      if (allPaid && program && currentStatus !== 'complete') {
+        try {
+          console.log('All beneficiaries paid. Updating program status to complete...');
+          
+          // Format program data for API update (matching the format used in SocialServices.jsx)
+          const programUpdateData = {
+            name: program.name || program.name,
+            description: program.description || '',
+            start_date: program.start_date || program.startDate || '',
+            end_date: program.end_date || program.endDate || '',
+            status: 'complete', // Update status to complete
+            beneficiary_type: program.beneficiary_type || program.beneficiaryType || '',
+            assistance_type: program.assistance_type || program.assistanceType || '',
+            amount: program.amount || '',
+            max_beneficiaries: program.max_beneficiaries || program.maxBeneficiaries || '',
+            payout_date: program.payout_date || program.payoutDate || null,
+          };
+          
+          await axiosInstance.put(`/admin/programs/${id}`, programUpdateData);
+          
+          // Refresh program data to get updated status
+          const programs = await fetchPrograms();
+          const updatedProgram = programs.find((p) => String(p.id) === String(id));
+          if (updatedProgram) {
+            setProgram(updatedProgram);
+          }
+
+          setToast({
+            type: 'success',
+            message: 'Beneficiary marked as paid successfully! Program status automatically updated to Complete.'
+          });
+        } catch (statusError) {
+          console.error('Failed to update program status:', statusError);
+          // Don't fail the entire operation if status update fails
+          setToast({
+            type: 'success',
+            message: response.data.message || 'Beneficiary marked as paid successfully'
+          });
+        }
+      } else {
+        setToast({
+          type: 'success',
+          message: response.data.message || 'Beneficiary marked as paid successfully'
+        });
+      }
 
     } catch (err) {
       console.error('Failed to mark beneficiary as paid:', err);

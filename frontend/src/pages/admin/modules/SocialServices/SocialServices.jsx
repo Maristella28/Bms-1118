@@ -129,10 +129,13 @@ const SocialServices = () => {
     if (!program || !program.id) {
       return 'draft';
     }
+    // Check if all beneficiaries are paid - if so, status should be complete
     if (areAllBeneficiariesPaid(program.id)) {
       return 'complete';
     }
-    return program.status || 'draft';
+    // Normalize status to lowercase for consistent comparison
+    const normalizedStatus = (program.status || 'draft').toLowerCase();
+    return normalizedStatus;
   };
 
   const handleAddProgramClick = () => {
@@ -3120,7 +3123,9 @@ const SocialServices = () => {
           formatDate={formatDate}
           formatDateRange={formatDateRange}
           handleDeleteProgram={handleDeleteProgram}
-              handleEditProgramClick={handleEditProgramClick}
+          handleEditProgramClick={handleEditProgramClick}
+          getEffectiveProgramStatus={getEffectiveProgramStatus}
+          areAllBeneficiariesPaid={areAllBeneficiariesPaid}
             />
             </div>
           )}
