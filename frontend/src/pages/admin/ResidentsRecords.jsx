@@ -10,6 +10,7 @@ import axiosInstance from "../../utils/axiosConfig";
 import { toast } from 'react-toastify';
 import { useAuth } from "../../contexts/AuthContext";
 import { useAdminResponsiveLayout } from "../../hooks/useAdminResponsiveLayout";
+import { usePermissions } from "../../hooks/usePermissions";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import AnalyticsDashboard from "./components/analytics/AnalyticsDashboard";
 import {
@@ -716,10 +717,18 @@ const AvatarImg = ({ avatarPath }) => {
 
 // Actions Dropdown Component for Residents
 const ActionsDropdown = ({ resident, onEdit, onDisable }) => {
+  const authContext = useAuth();
+  const user = authContext?.user;
+  const { canPerformAction } = usePermissions();
   const buttonRef = useRef(null);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
   const [shouldFlipUp, setShouldFlipUp] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  
+  // Check permissions for edit and disable actions
+  const canEdit = user?.role === 'admin' || canPerformAction('edit', 'residents', 'main_records');
+  const canDisable = user?.role === 'admin' || canPerformAction('disable', 'residents', 'main_records');
+  const canView = user?.role === 'admin' || canPerformAction('view', 'residents', 'main_records');
 
   // Calculate dropdown position when opened
   useEffect(() => {
@@ -771,14 +780,20 @@ const ActionsDropdown = ({ resident, onEdit, onDisable }) => {
     );
   };
 
-  const menuItems = [
-    {
+  // Build menu items based on permissions
+  const menuItems = [];
+  
+  if (canEdit) {
+    menuItems.push({
       label: 'Edit',
       icon: PencilIcon,
       onClick: () => onEdit?.(resident),
       className: 'text-gray-700 hover:bg-yellow-50 hover:text-yellow-700',
-    },
-    {
+    });
+  }
+  
+  if (canDisable) {
+    menuItems.push({
       label: 'Disable',
       icon: TrashIcon,
       onClick: () => {
@@ -792,8 +807,13 @@ const ActionsDropdown = ({ resident, onEdit, onDisable }) => {
         onDisable?.(residentId);
       },
       className: 'text-gray-700 hover:bg-red-50 hover:text-red-700',
-    },
-  ];
+    });
+  }
+  
+  // If no actions are available, don't show the dropdown
+  if (menuItems.length === 0) {
+    return null;
+  }
 
   return (
     <Menu as="div" className="relative inline-block text-left">
@@ -869,6 +889,7 @@ const ResidentsRecords = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  const { canPerformAction } = usePermissions();
   const { mainClasses } = useAdminResponsiveLayout();
   
   // Handle section query parameter for navigation
@@ -1471,6 +1492,15 @@ const ResidentsRecords = () => {
 
   const handleShowDetails = (residentId) => {
     console.log('handleShowDetails called with ID:', residentId);
+    
+    // Check if user has view permission (for staff users)
+    if (user?.role === 'staff') {
+      const canView = canPerformAction('view', 'residents', 'main_records');
+      if (!canView) {
+        toast.error('You do not have permission to view resident details');
+        return;
+      }
+    }
     
     // If clicking the same resident, toggle close
     if (selectedResident?.id === residentId) {
@@ -3645,7 +3675,7 @@ const ResidentsRecords = () => {
                           </td>
                         </tr>
 
-                        {selectedResident?.id === (r.id || r.user_id) && (
+                        {selectedResident?.id === (r.id || r.user_id) && (user?.role === 'admin' || canPerformAction('view', 'residents', 'main_records')) && (
                           <tr className="bg-gradient-to-r from-green-50 to-emerald-50">
                             <td colSpan="8" className="px-8 py-8">
                               {detailLoading ? (

@@ -735,14 +735,19 @@ const Sidebar = ({ permissions: propPermissions = {} }) => {
         // Check if user has access to the main module
         const hasAccess = hasModuleAccess(item.module);
         
+        // If no access to main module, don't show the item
+        if (!hasAccess) {
+          return false;
+        }
+        
         if (item.subItems) {
           // For items with sub-items, filter sub-items based on sub-module permissions
           item.subItems = item.subItems.filter(subItem => 
             hasSubModuleAccess(subItem.module, subItem.subModule)
           );
           
-          // Show parent item if it has accessible sub-items or if user has module access
-          return item.subItems.length > 0 || hasAccess;
+          // Show parent item only if it has accessible sub-items
+          return item.subItems.length > 0;
         }
         
         return hasAccess;

@@ -78,7 +78,7 @@ export const getFilteredNavigationItems = (navigationItems, staffPermissions) =>
 /**
  * Check if a staff member can perform a specific action
  * @param {Object} staffPermissions - Staff member's permissions object
- * @param {string} action - Action to check (e.g., 'view', 'edit', 'delete')
+ * @param {string} action - Action to check (e.g., 'view', 'edit', 'delete', 'disable')
  * @param {string} moduleKey - Module key
  * @param {string} subModuleKey - Optional sub-module key
  * @returns {boolean} - Whether the staff member can perform the action
@@ -86,14 +86,37 @@ export const getFilteredNavigationItems = (navigationItems, staffPermissions) =>
 export const canPerformAction = (staffPermissions, action, moduleKey, subModuleKey = null) => {
   if (!staffPermissions || !action || !moduleKey) return false;
   
-  // For now, we'll use module/sub-module access as the basis for actions
-  // This can be extended later to include specific action permissions
+  const modulePermission = staffPermissions[moduleKey];
   
-  if (subModuleKey) {
-    return hasSubModuleAccess(staffPermissions, moduleKey, subModuleKey);
+  // Handle new permission structure with nested sub-permissions
+  if (typeof modulePermission === 'object' && modulePermission !== null) {
+    // Check if module has access
+    if (!modulePermission.access) return false;
+    
+    // If checking for a sub-module with nested permissions (e.g., main_records with edit, disable, view)
+    if (subModuleKey && modulePermission.sub_permissions) {
+      const subPermission = modulePermission.sub_permissions[subModuleKey];
+      
+      // Check if sub-permission has nested sub-permissions (e.g., main_records with edit, disable, view)
+      if (typeof subPermission === 'object' && subPermission !== null && subPermission.sub_permissions) {
+        // Check if the action is in the nested sub-permissions
+        if (subPermission.sub_permissions[action] !== undefined) {
+          return Boolean(subPermission.sub_permissions[action]);
+        }
+        // If action not found in nested, check if sub-permission has access
+        return Boolean(subPermission.access);
+      }
+      
+      // Simple sub-permission (boolean)
+      return Boolean(subPermission);
+    }
+    
+    // If no sub-module specified, check module access
+    return Boolean(modulePermission.access);
   }
   
-  return hasModuleAccess(staffPermissions, moduleKey);
+  // Handle legacy boolean format
+  return Boolean(modulePermission);
 };
 
 /**
