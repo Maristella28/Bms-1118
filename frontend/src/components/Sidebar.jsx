@@ -484,10 +484,12 @@ const Sidebar = ({ permissions: propPermissions = {} }) => {
           }
           // Don't fail silently - return 0 count on error
           return { type: 'verification', count: 0 };
-        }),
+        }).catch(() => null) : Promise.resolve(null),
         
         // Fetch pending blotter requests count
-        axiosInstance.get('/admin/blotter-requests', {
+        // Only fetch if user has blotter module access
+        (user?.role === 'admin' || hasModuleAccess('blotter'))
+        ? axiosInstance.get('/admin/blotter-requests', {
           timeout: 15000 // 15 second timeout - increased for slow backend
         }).then(response => {
           const blotterRequests = extractArrayFromResponse(response.data, ['blotter_requests']);
@@ -529,7 +531,8 @@ const Sidebar = ({ permissions: propPermissions = {} }) => {
               console.error('Error fetching asset requests count:', altErr);
             }
             return null;
-          }).catch(() => null) : Promise.resolve(null)
+          });
+        }).catch(() => null) : Promise.resolve(null)
       ];
       
       // Execute all fetches in parallel (use allSettled so one failure doesn't block others)
