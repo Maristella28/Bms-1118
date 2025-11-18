@@ -361,6 +361,8 @@ class StaffController extends Controller
             }
             
             // Define all expected permission keys with default false values
+            // Note: We only set defaults for main module keys, not nested sub-permissions
+            // Nested permissions (e.g., residentsRecords_main_records_view) should come from incomingPermissions
             $defaultPermissions = [
                 'dashboard' => false,
                 'residentsRecords' => false,
@@ -378,8 +380,26 @@ class StaffController extends Controller
                 'activityLogs' => false
             ];
             
-            // Merge incoming permissions with defaults to ensure all keys are present
+            // Merge incoming permissions with defaults
+            // This ensures main module keys exist, but preserves all nested keys from incomingPermissions
             $finalPermissions = array_merge($defaultPermissions, $incomingPermissions);
+            
+            // Log what we're about to save
+            Log::info('StaffController@updateModulePermissions - Final permissions to save', [
+                'staff_id' => $staff->id,
+                'incoming_keys' => array_keys($incomingPermissions),
+                'final_keys' => array_keys($finalPermissions),
+                'residents_related_keys' => array_filter(array_keys($finalPermissions), function($key) {
+                    return strpos($key, 'residents') !== false;
+                }),
+                'sample_permissions' => array_intersect_key($finalPermissions, array_flip([
+                    'residentsRecords',
+                    'residentsRecords_main_records',
+                    'residentsRecords_main_records_view',
+                    'residentsRecords_main_records_edit',
+                    'residentsRecords_main_records_disable'
+                ]))
+            ]);
             
             // Update the staff permissions
             $staff->module_permissions = $finalPermissions;

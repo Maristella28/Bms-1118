@@ -251,6 +251,8 @@ const StaffManagement = () => {
   const mapUiToApiPermissions = (uiPerms) => {
     const out = {};
     
+    console.log('mapUiToApiPermissions - Input UI permissions:', JSON.stringify(uiPerms, null, 2));
+    
     Object.entries(uiPerms || {}).forEach(([uiKey, val]) => {
       if (typeof val === 'object' && val !== null) {
         // Handle new permission structure with sub-permissions
@@ -259,21 +261,40 @@ const StaffManagement = () => {
         if (val.sub_permissions) {
           // Convert sub-permissions to flat structure for backend
           out[apiKey] = Boolean(val.access);
+          console.log(`Setting ${apiKey} = ${out[apiKey]}`);
+          
           Object.entries(val.sub_permissions).forEach(([subKey, subVal]) => {
             // Check if subVal has nested sub-permissions (e.g., main_records with edit, disable, view)
             if (typeof subVal === 'object' && subVal !== null && subVal.sub_permissions) {
               // Handle nested sub-permissions
-              out[`${apiKey}_${subKey}`] = Boolean(subVal.access);
-              Object.entries(subVal.sub_permissions).forEach(([nestedKey, nestedVal]) => {
-                out[`${apiKey}_${subKey}_${nestedKey}`] = Boolean(nestedVal);
-          });
-        } else {
+              const subModuleKey = `${apiKey}_${subKey}`;
+              out[subModuleKey] = Boolean(subVal.access);
+              console.log(`Setting ${subModuleKey} = ${out[subModuleKey]}`);
+              
+              // Get the default structure for this sub-permission to ensure we include all nested keys
+              const defaultSubPerm = defaultPermissions[uiKey]?.sub_permissions?.[subKey];
+              const allNestedKeys = defaultSubPerm?.sub_permissions 
+                ? Object.keys(defaultSubPerm.sub_permissions)
+                : Object.keys(subVal.sub_permissions || {});
+              
+              // Include ALL nested permission keys, even if they don't exist in the current state
+              allNestedKeys.forEach((nestedKey) => {
+                const nestedKeyFull = `${apiKey}_${subKey}_${nestedKey}`;
+                // Use the value from state if it exists, otherwise default to false
+                const nestedVal = subVal.sub_permissions?.[nestedKey];
+                out[nestedKeyFull] = nestedVal !== undefined ? Boolean(nestedVal) : false;
+                console.log(`Setting ${nestedKeyFull} = ${out[nestedKeyFull]}`);
+              });
+            } else {
               // Handle simple sub-permissions (boolean)
-              out[`${apiKey}_${subKey}`] = Boolean(subVal);
+              const subModuleKey = `${apiKey}_${subKey}`;
+              out[subModuleKey] = Boolean(subVal);
+              console.log(`Setting ${subModuleKey} = ${out[subModuleKey]}`);
             }
           });
         } else {
           out[apiKey] = Boolean(val.access);
+          console.log(`Setting ${apiKey} = ${out[apiKey]} (no sub-permissions)`);
         }
       } else {
         // Handle legacy boolean format
@@ -281,10 +302,12 @@ const StaffManagement = () => {
         
         if (uiKey === 'dashboard') {
           out.dashboard = normalizedValue;
+          console.log(`Setting dashboard = ${out.dashboard}`);
         } else {
           const apiKey = uiToApiMap[uiKey];
           if (apiKey) {
             out[apiKey] = normalizedValue;
+            console.log(`Setting ${apiKey} = ${out[apiKey]}`);
           }
         }
       }
@@ -293,11 +316,14 @@ const StaffManagement = () => {
     // Ensure all values are booleans (not objects or other types)
     Object.keys(out).forEach(key => {
       if (typeof out[key] !== 'boolean') {
+        console.warn(`Warning: ${key} is not a boolean, converting:`, out[key]);
         out[key] = Boolean(out[key]);
       }
     });
     
     console.log('Mapped UI to API permissions (flattened):', out);
+    console.log('Keys being sent:', Object.keys(out));
+    console.log('Residents-related keys:', Object.keys(out).filter(k => k.includes('residents')));
     return out;
   };
 
