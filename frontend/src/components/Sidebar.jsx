@@ -368,9 +368,16 @@ const Sidebar = ({ permissions: propPermissions = {} }) => {
       
       // Step 2: Fetch dashboard stats with reasonable timeout
       // Only fetch if user has dashboard access (admin always has access)
+      // For staff, check actual permissions from backend (not fallback)
       // Don't await - start all fetches in parallel immediately
       // NOTE: We don't update state here to prevent partial updates - wait for all data
-      const dashboardPromise = (user?.role === 'admin' || hasModuleAccess('dashboard')) 
+      const hasDashboardAccess = user?.role === 'admin' || 
+        (user?.role === 'staff' && 
+         user?.module_permissions && 
+         Object.keys(user.module_permissions).length > 1 && // More than just fallback dashboard
+         (user.module_permissions.dashboard === true || user.permissions?.dashboard === true));
+      
+      const dashboardPromise = hasDashboardAccess
         ? axiosInstance.get('/admin/dashboard', {
             timeout: 20000 // 20 second timeout - increased to handle slow database queries
           }).then(response => {

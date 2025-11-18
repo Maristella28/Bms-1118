@@ -323,8 +323,8 @@ const AuthProvider = ({ children }) => {
         setUser(userData);
         localStorage.setItem('user', JSON.stringify(userData));
         
-        // Only fetch detailed data for residents in background (non-blocking)
-        if (userData.role === 'residents') {
+        // Fetch detailed permissions for staff and residents in background (non-blocking)
+        if (userData.role === 'staff' || userData.role === 'residents') {
           fetchUser(true).catch(err => {
             console.warn('Background user fetch failed:', err);
             // Don't fail login if background fetch fails

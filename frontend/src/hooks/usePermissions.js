@@ -19,13 +19,18 @@ export const usePermissions = () => {
   // This ensures we use the actual backend permissions, not fallback values
   let staffPermissions = user?.module_permissions || user?.permissions || {};
   
-  // Fallback for staff users if permissions are not properly loaded
-  // Only grant minimal access - don't grant unauthorized permissions
-  if (user?.role === 'staff' && (!staffPermissions || Object.keys(staffPermissions).length <= 1)) {
-    console.log('usePermissions - Using minimal fallback permissions for staff (dashboard only)');
-    staffPermissions = {
-      dashboard: true
-    };
+  // Check if permissions are actually loaded (not just fallback)
+  // If module_permissions only has dashboard and permissions only has dashboard, it's likely a fallback
+  const isFallback = user?.role === 'staff' && 
+    (!staffPermissions || 
+     (Object.keys(staffPermissions).length === 1 && staffPermissions.dashboard === true) ||
+     (Object.keys(user?.module_permissions || {}).length === 1 && user?.module_permissions?.dashboard === true));
+  
+  // Only use fallback if permissions are truly not loaded (not just minimal permissions)
+  // Don't grant dashboard access if it's just a fallback - wait for real permissions
+  if (isFallback && (!user?.module_permissions || Object.keys(user?.module_permissions).length <= 1)) {
+    console.log('usePermissions - Permissions not loaded yet, using empty permissions (waiting for backend)');
+    staffPermissions = {}; // Don't grant any permissions until loaded
   }
   
   // Reduced logging to prevent console spam
