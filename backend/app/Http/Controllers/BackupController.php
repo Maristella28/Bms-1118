@@ -28,15 +28,39 @@ class BackupController extends Controller
      */
     public function runBackup(Request $request)
     {
+        \Log::info('BackupController::runBackup called', ['type' => $request->input('type', 'all')]);
+        
         try {
             $type = $request->input('type', 'all'); // all, database, storage, config
             
-            // Run backup command
-            Artisan::call('backup:run', [
+            // Set timeout for long-running backup operations
+            set_time_limit(300); // 5 minutes
+            
+            // Run backup command with error handling
+            $exitCode = Artisan::call('backup:run', [
                 '--type' => $type
             ]);
 
             $output = Artisan::output();
+            
+            \Log::info('Backup command completed', [
+                'exit_code' => $exitCode,
+                'output_length' => strlen($output)
+            ]);
+
+            // Check if backup was successful
+            if ($exitCode !== 0) {
+                \Log::error('Backup command failed', [
+                    'exit_code' => $exitCode,
+                    'output' => $output
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Backup failed. Please check server logs for details.',
+                    'output' => $output
+                ], 500);
+            }
 
             // Log activity (wrap in try-catch to prevent backup failure if logging fails)
             try {
@@ -53,7 +77,12 @@ class BackupController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
-            \Log::error('Backup failed: ' . $e->getMessage());
+            \Log::error('Backup failed', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
             
             return response()->json([
                 'success' => false,

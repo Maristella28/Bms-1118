@@ -121,24 +121,46 @@ class RunBackup extends Command
             $this->line("   Tables: {$tableCount[0]->count}");
 
             // Create database backup using mysqldump
-            $command = sprintf(
-                'mysqldump --single-transaction --routines --triggers -h %s -u %s -p%s %s 2>/dev/null | gzip > %s',
-                escapeshellarg($dbHost),
-                escapeshellarg($dbUser),
-                escapeshellarg($dbPass),
-                escapeshellarg($dbName),
-                escapeshellarg($backupFile)
-            );
-
-            exec($command, $output, $returnCode);
-
-            if ($returnCode === 0 && file_exists($backupFile)) {
-                $size = $this->formatBytes(filesize($backupFile));
-                $this->line("   <fg=green>✓</> Database backup created: {$size}");
-                return ['success' => true, 'message' => "Backup created ({$size})"];
+            // Use PHP-based backup for Windows compatibility
+            $backupFileUncompressed = "{$backupDir}/db_backup_{$timestamp}.sql";
+            
+            if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+                // Windows: Use PHP to export database
+                $this->line("   Using PHP-based backup for Windows...");
+                $result = $this->backupDatabasePHP($dbHost, $dbUser, $dbPass, $dbName, $backupFileUncompressed);
+                
+                if ($result['success']) {
+                    // Compress using PHP gzip
+                    $this->compressFile($backupFileUncompressed, $backupFile);
+                    if (file_exists($backupFile)) {
+                        @unlink($backupFileUncompressed); // Remove uncompressed file
+                        $size = $this->formatBytes(filesize($backupFile));
+                        $this->line("   <fg=green>✓</> Database backup created: {$size}");
+                        return ['success' => true, 'message' => "Backup created ({$size})"];
+                    }
+                }
+                return ['success' => false, 'message' => $result['message'] ?? 'Backup failed'];
             } else {
-                $this->error("   ✗ Database backup failed!");
-                return ['success' => false, 'message' => 'Backup failed'];
+                // Linux/Unix: Use mysqldump
+                $command = sprintf(
+                    'mysqldump --single-transaction --routines --triggers -h %s -u %s -p%s %s 2>/dev/null | gzip > %s',
+                    escapeshellarg($dbHost),
+                    escapeshellarg($dbUser),
+                    escapeshellarg($dbPass),
+                    escapeshellarg($dbName),
+                    escapeshellarg($backupFile)
+                );
+
+                exec($command, $output, $returnCode);
+
+                if ($returnCode === 0 && file_exists($backupFile)) {
+                    $size = $this->formatBytes(filesize($backupFile));
+                    $this->line("   <fg=green>✓</> Database backup created: {$size}");
+                    return ['success' => true, 'message' => "Backup created ({$size})"];
+                } else {
+                    $this->error("   ✗ Database backup failed! Return code: {$returnCode}");
+                    return ['success' => false, 'message' => 'Backup failed'];
+                }
             }
         } catch (\Exception $e) {
             $this->error("   ✗ Error: " . $e->getMessage());
@@ -167,22 +189,39 @@ class RunBackup extends Command
             $fileCount = $this->countFiles($storagePath);
             $this->line("   Files to backup: {$fileCount}");
 
-            // Create tar.gz archive
-            $command = sprintf(
-                'cd %s && tar -czf %s . 2>/dev/null',
-                escapeshellarg($storagePath),
-                escapeshellarg($backupFile)
-            );
-
-            exec($command, $output, $returnCode);
-
-            if ($returnCode === 0 && file_exists($backupFile)) {
-                $size = $this->formatBytes(filesize($backupFile));
-                $this->line("   <fg=green>✓</> Storage backup created: {$size}");
-                return ['success' => true, 'message' => "Backup created ({$size})"];
+            // Create archive - use PHP ZipArchive for Windows compatibility
+            // Change extension to .zip for Windows
+            $backupFileZip = str_replace('.tar.gz', '.zip', $backupFile);
+            
+            if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN' || !function_exists('exec')) {
+                // Windows or exec disabled: Use PHP ZipArchive
+                $this->line("   Using PHP ZipArchive for backup...");
+                $result = $this->backupStoragePHP($storagePath, $backupFileZip);
+                
+                if ($result['success'] && file_exists($backupFileZip)) {
+                    $size = $this->formatBytes(filesize($backupFileZip));
+                    $this->line("   <fg=green>✓</> Storage backup created: {$size}");
+                    return ['success' => true, 'message' => "Backup created ({$size})"];
+                }
+                return ['success' => false, 'message' => $result['message'] ?? 'Backup failed'];
             } else {
-                $this->error("   ✗ Storage backup failed!");
-                return ['success' => false, 'message' => 'Backup failed'];
+                // Linux/Unix: Use tar
+                $command = sprintf(
+                    'cd %s && tar -czf %s . 2>/dev/null',
+                    escapeshellarg($storagePath),
+                    escapeshellarg($backupFile)
+                );
+
+                exec($command, $output, $returnCode);
+
+                if ($returnCode === 0 && file_exists($backupFile)) {
+                    $size = $this->formatBytes(filesize($backupFile));
+                    $this->line("   <fg=green>✓</> Storage backup created: {$size}");
+                    return ['success' => true, 'message' => "Backup created ({$size})"];
+                } else {
+                    $this->error("   ✗ Storage backup failed! Return code: {$returnCode}");
+                    return ['success' => false, 'message' => 'Backup failed'];
+                }
             }
         } catch (\Exception $e) {
             $this->error("   ✗ Error: " . $e->getMessage());
@@ -258,6 +297,136 @@ class RunBackup extends Command
             }
         }
         return $count;
+    }
+
+    /**
+     * Backup database using PHP (Windows compatible)
+     */
+    private function backupDatabasePHP($dbHost, $dbUser, $dbPass, $dbName, $backupFile)
+    {
+        try {
+            $handle = fopen($backupFile, 'w');
+            if (!$handle) {
+                return ['success' => false, 'message' => 'Cannot create backup file'];
+            }
+
+            // Write header
+            fwrite($handle, "-- Database Backup\n");
+            fwrite($handle, "-- Generated: " . date('Y-m-d H:i:s') . "\n");
+            fwrite($handle, "-- Database: {$dbName}\n\n");
+            fwrite($handle, "SET SQL_MODE = \"NO_AUTO_VALUE_ON_ZERO\";\n");
+            fwrite($handle, "SET time_zone = \"+00:00\";\n\n");
+
+            // Get all tables
+            $tables = DB::select("SHOW TABLES");
+            $tableKey = "Tables_in_{$dbName}";
+
+            foreach ($tables as $table) {
+                $tableName = $table->$tableKey;
+                $this->line("   Exporting table: {$tableName}");
+
+                // Get table structure
+                $createTable = DB::select("SHOW CREATE TABLE `{$tableName}`");
+                fwrite($handle, "\n-- Table structure for `{$tableName}`\n");
+                fwrite($handle, "DROP TABLE IF EXISTS `{$tableName}`;\n");
+                fwrite($handle, $createTable[0]->{'Create Table'} . ";\n\n");
+
+                // Get table data
+                $rows = DB::table($tableName)->get();
+                if ($rows->count() > 0) {
+                    fwrite($handle, "-- Data for table `{$tableName}`\n");
+                    fwrite($handle, "LOCK TABLES `{$tableName}` WRITE;\n");
+                    
+                    foreach ($rows as $row) {
+                        $values = [];
+                        foreach ((array)$row as $value) {
+                            if ($value === null) {
+                                $values[] = 'NULL';
+                            } else {
+                                $values[] = "'" . addslashes($value) . "'";
+                            }
+                        }
+                        $columns = implode('`, `', array_keys((array)$row));
+                        $valuesStr = implode(', ', $values);
+                        fwrite($handle, "INSERT INTO `{$tableName}` (`{$columns}`) VALUES ({$valuesStr});\n");
+                    }
+                    
+                    fwrite($handle, "UNLOCK TABLES;\n\n");
+                }
+            }
+
+            fclose($handle);
+            return ['success' => true, 'message' => 'Database exported successfully'];
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Backup storage using PHP ZipArchive (Windows compatible)
+     */
+    private function backupStoragePHP($storagePath, $backupFile)
+    {
+        try {
+            if (!class_exists('ZipArchive')) {
+                return ['success' => false, 'message' => 'ZipArchive class not available'];
+            }
+
+            $zip = new \ZipArchive();
+            if ($zip->open($backupFile, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== TRUE) {
+                return ['success' => false, 'message' => 'Cannot create zip file'];
+            }
+
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($storagePath, \RecursiveDirectoryIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::SELF_FIRST
+            );
+
+            $fileCount = 0;
+            foreach ($iterator as $file) {
+                if ($file->isFile()) {
+                    $filePath = $file->getRealPath();
+                    $relativePath = substr($filePath, strlen($storagePath) + 1);
+                    $zip->addFile($filePath, $relativePath);
+                    $fileCount++;
+                    
+                    if ($fileCount % 100 === 0) {
+                        $this->line("   Processed {$fileCount} files...");
+                    }
+                }
+            }
+
+            $zip->close();
+            return ['success' => true, 'message' => "Backed up {$fileCount} files"];
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Compress file using PHP gzip
+     */
+    private function compressFile($sourceFile, $destinationFile)
+    {
+        try {
+            $sourceHandle = fopen($sourceFile, 'rb');
+            $destHandle = gzopen($destinationFile, 'wb9');
+
+            if (!$sourceHandle || !$destHandle) {
+                return false;
+            }
+
+            while (!feof($sourceHandle)) {
+                gzwrite($destHandle, fread($sourceHandle, 8192));
+            }
+
+            fclose($sourceHandle);
+            gzclose($destHandle);
+            return true;
+        } catch (\Exception $e) {
+            $this->error("   Compression error: " . $e->getMessage());
+            return false;
+        }
     }
 
     /**
